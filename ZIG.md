@@ -508,6 +508,69 @@ export fn _start() noreturn {
 
 ---
 
+## Phase 5 Implementation Notes
+
+### Command-Line Argument Parsing
+
+In freestanding mode, `argc` and `argv` are not provided as function parameters. They must be read directly from the stack at program entry.
+
+### Stack Layout (x86_64 Linux)
+
+```
+[stack top]
++------------------+
+| argc            | <- Stack pointer points here
++------------------+
+| argv[0]         | <- Program name
++------------------+
+| argv[1]         | <- First argument
++------------------+
+| argv[2]         | <- Second argument
++------------------+
+| NULL             | <- argv terminator
++------------------+
+| envp            | <- Environment variables
++------------------+
+| NULL             | <- envp terminator
++------------------+
+```
+
+### Reading Stack Pointer
+
+```zig
+fn parseArgcArgv() struct { argc: usize, argv: [*][*]u8 } {
+    var sp: usize = 0;
+    asm volatile ("mov %%rsp, %[sp]" : [sp] "=r" (sp));
+    
+    const argc = @as(*const usize, @ptrFromInt(sp)).*;
+    const argv = @as([*][*]u8, @ptrFromInt(sp + @sizeOf(usize)));
+    
+    return .{ .argc = argc, .argv = argv };
+}
+```
+
+### Important Considerations
+
+1. **argc includes program name:** argv[0] is the program path, argv[1] is the first actual argument
+
+2. **Pointer casting:** Stack contains addresses; use `@ptrFromInt()` and `@intFromPtr()` for safe conversion
+
+3. **Null termination:** argv is terminated by a NULL pointer (not explicitly needed in basic usage)
+
+4. **Default values:** Always provide fallback values when argc is 1 (program only)
+
+5. **Error handling:** Check file open return values before attempting fstat/mmap operations
+
+### Usage Pattern
+
+```zig
+const args = parseArgcArgv();
+const default_file = "/tmp/test_file.txt";
+const filename_ptr = if (args.argc > 1) args.argv[1] else default_file;
+```
+
+---
+
 ## Phase 2 Implementation Notes
 
 ### Key Discoveries
@@ -534,10 +597,11 @@ The mmap approach allows:
 
 ### Binary Size Growth
 
-- Phase 1: 1.2KB
+- Phase 1: 1.2KB (freestanding entry)
 - Phase 2: 1.6KB (+400 bytes for mmap/fstat support)
+- Phase 5: 1.7KB (+100 bytes for argv parsing)
 
-Still well under 600KB target.
+Still well under 600KB target (97% under budget).
 
 ---
 
@@ -579,11 +643,11 @@ _ = result;
 ---
 
 ## Current Project Status
-
-- **Binary Size:** ~1.6K (1636 bytes)
+ 
+- **Binary Size:** ~1.7K (1740 bytes)
 - **Target:** < 600KB ✓
-- **Source Lines:** 247 lines
-- **Status:** Phase 2 Complete - Memory-mapped I/O working
+- **Source Lines:** 274 lines
+- **Status:** Phase 5 Complete - Command-line parsing working
 - **Features Implemented:**
   - [x] Freestanding entry (no LibC)
   - [x] Raw syscalls (write, read, exit)
@@ -591,10 +655,12 @@ _ = result;
   - [x] fstat for file size detection
   - [x] Viewport rendering (20 lines)
   - [x] j/k scroll navigation
+  - [x] Command-line argument parsing (argc/argv from stack)
+  - [x] Memory cleanup on exit (munmap)
+  - [x] Input validation (read_result checks)
 - **Next Phases:**
-  - Phase 3: ANSI diff rendering (minimize redraws)
   - Phase 4: File saving with dirty pages
-  - Phase 5: Command-line argument parsing
+  - Phase 3: ANSI diff rendering (minimize redraws) - optimization
 
 ---
 
