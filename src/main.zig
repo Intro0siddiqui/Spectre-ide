@@ -37,7 +37,17 @@ inline fn syscall6(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4:
           [arg3] "{rdx}" (arg3),
           [arg4] "{r10}" (arg4),
           [arg5] "{r8}" (arg5),
-          [arg6] "{r9}" (arg6));
+          [arg6] "{r9}" (arg6)
+    );
+}
+
+inline fn syscall2(number: Syscall, arg1: usize, arg2: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize)
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2)
+    );
 }
 
 fn rawWrite(fd: usize, ptr: [*]const u8, len: usize) void {
@@ -72,14 +82,6 @@ fn rawMunmap(addr: [*]u8, length: usize) isize {
     return @bitCast(syscall2(Syscall.munmap, @intFromPtr(addr), length));
 }
 
-inline fn syscall2(number: Syscall, arg1: usize, arg2: usize) usize {
-    return asm volatile ("syscall"
-        : [ret] "={rax}" (-> usize)
-        : [number] "{rax}" (@intFromEnum(number)),
-          [arg1] "{rdi}" (arg1),
-          [arg2] "{rsi}" (arg2));
-}
-
 fn getPageSize() usize {
     return PAGE_SIZE;
 }
@@ -88,7 +90,7 @@ fn alignUp(size: usize, alignment: usize) usize {
     return (size + alignment - 1) & ~(alignment - 1);
 }
 
-const welcome_msg = "Spectre-IDE: The 2026 Monster Editor\n======================================\nPhase 2 Active:\n  [x] Freestanding Entry (No LibC)\n  [x] Raw Mode TTY Driver\n  [x] Direct Syscalls\n  [ ] Memory-Mapped I/O (Zero-Copy)\n\nUsage: spectre-ide <filename>\nControls: 'q' to exit, j/k to scroll\n\n";
+const welcome_msg = "Spectre-IDE: The 2026 Monster Editor\n======================================\nPhase 2 Complete:\n  [x] Freestanding Entry (No LibC)\n  [x] Raw Mode TTY Driver\n  [x] Direct Syscalls\n  [x] Memory-Mapped I/O (Zero-Copy)\n  [x] Command-Line Arguments\n\nUsage: spectre-ide <filename>\nControls: 'q' to exit, j/k to scroll\n\n";
 
 const Viewport = struct {
     rows: usize = 24,
@@ -187,9 +189,21 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize) void {
     rawWrite(STDOUT_FILENO, " | j/k scroll, q exit\x1b[0m\n", 29);
 }
 
+fn parseArgcArgv() struct { argc: usize, argv: [*][*]u8 } {
+    var sp: usize = 0;
+    asm volatile ("mov %%rsp, %[sp]" : [sp] "=r" (sp));
+    
+    const argc = @as(*const usize, @ptrFromInt(sp)).*;
+    const argv = @as([*][*]u8, @ptrFromInt(sp + @sizeOf(usize)));
+    
+    return .{ .argc = argc, .argv = argv };
+}
+
 export fn _start() noreturn {
-    const test_file = "/tmp/test_file.txt";
-    const filename_ptr = test_file;
+    const args = parseArgcArgv();
+    
+    const default_file = "/tmp/test_file.txt";
+    const filename_ptr = if (args.argc > 1) args.argv[1] else default_file;
     
     const fd = rawOpen(filename_ptr, O_RDWR, 0);
     if (fd < 0) {
@@ -199,7 +213,8 @@ export fn _start() noreturn {
     }
     
     var stat_buf: [144]u8 = undefined;
-    const stat_result = syscall2(Syscall.fstat, @intCast(fd), @intFromPtr(&stat_buf));
+    const fd_usize: usize = @bitCast(fd);
+    const stat_result = syscall2(Syscall.fstat, fd_usize, @intFromPtr(&stat_buf));
     _ = stat_result;
     
     var file_size: usize = 0;
@@ -210,19 +225,22 @@ export fn _start() noreturn {
     
     const aligned_size = alignUp(file_size, getPageSize());
     
-    const mapped_ptr = rawMmap(null, aligned_size, PROT_READ_WRITE, MAP_PRIVATE, @intCast(fd), 0);
+    const mapped_ptr = rawMmap(null, aligned_size, PROT_READ_WRITE, MAP_PRIVATE, fd_usize, 0);
     if (mapped_ptr == null) {
         const error_msg = "Error: mmap failed\n";
         rawWrite(STDOUT_FILENO, error_msg, error_msg.len);
-        const close_result = rawClose(@intCast(fd));
+        const close_result = rawClose(fd_usize);
         _ = close_result;
         rawExit(1);
     }
     
-    const close_result = rawClose(@intCast(fd));
+    const close_result = rawClose(fd_usize);
     _ = close_result;
     
     var line_offset: usize = 0;
+    
+    const debug_msg = "Opened file\n";
+    rawWrite(STDOUT_FILENO, debug_msg, debug_msg.len);
     
     if (mapped_ptr) |data| {
         renderViewport(data, file_size, line_offset);
@@ -230,17 +248,26 @@ export fn _start() noreturn {
     
     var buffer: [1]u8 = undefined;
     while (true) {
-        _ = rawRead(STDIN_FILENO, &buffer, 1);
+        const read_result = rawRead(STDIN_FILENO, &buffer, 1);
         if (buffer[0] == 'q') break;
-        if (mapped_ptr) |data| {
-            if (buffer[0] == 'j') {
-                line_offset +%= 1;
-                renderViewport(data, file_size, line_offset);
-            } else if (buffer[0] == 'k' and line_offset > 0) {
-                line_offset -= 1;
-                renderViewport(data, file_size, line_offset);
+        if (read_result > 0) {
+            if (mapped_ptr) |data| {
+                if (buffer[0] == 'j') {
+                    line_offset +%= 1;
+                    renderViewport(data, file_size, line_offset);
+                } else if (buffer[0] == 'k' and line_offset > 0) {
+                    line_offset -= 1;
+                    renderViewport(data, file_size, line_offset);
+                }
             }
         }
+    }
+    
+    const exit_msg = "\x1b[2J\x1b[HGoodbye!\n";
+    rawWrite(STDOUT_FILENO, exit_msg, exit_msg.len);
+    
+    if (mapped_ptr) |data| {
+        _ = rawMunmap(data, aligned_size);
     }
     
     rawExit(0);
