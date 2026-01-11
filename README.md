@@ -36,14 +36,23 @@ ls -lh zig-out/bin/spectre-ide
 
 ## Usage
 
+### Quick Start (Linux x86_64)
+
 ```bash
-# Run editor (currently hardcoded to /tmp/test_file.txt)
-./zig-out/bin/spectre-ide
+# Use pre-built binary
+./bin/spectre-ide
 
 # Controls:
 #   j - scroll down
 #   k - scroll up
 #   q - exit
+```
+
+### Build from Source
+
+```bash
+/opt/zig/zig build -Drelease=true
+./zig-out/bin/spectre-ide
 ```
 
 ## Architecture
