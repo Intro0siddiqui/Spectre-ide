@@ -8,7 +8,7 @@
 - [x] Task: Map scroll wheel events to viewport `line_offset` adjustment. [commit: 9f37b51]
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Mouse Support' (Protocol in workflow.md)
 
-## Phase 2: Terminal Relay Foundation
+## Phase 2: Terminal Relay Foundation [checkpoint: a08267e]
 - [x] Task: Add `fork`, `execve`, `pipe`, `dup2`, and `waitpid` syscalls to `src/syscalls.zig`. [commit: 87f6129]
 - [x] Task: Implement basic process spawning logic in a new `src/terminal.zig` or `src/main.zig`. [commit: 99e275a]
 - [x] Task: Implement non-blocking output capture from the child process. [commit: ebf45fd]
