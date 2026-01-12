@@ -104,7 +104,6 @@ src/lsp_client.zig   - LSP client implementation
 src/config.zig       - Configuration system
 build.zig            - Zig build system
 ZIG.md               - Technical documentation
-IMPLEMENTATION_PLAN.md - Feature roadmap
 ```
 
 ## Requirements
