@@ -12,5 +12,5 @@
 - [x] Task: Add `fork`, `execve`, `pipe`, `dup2`, and `waitpid` syscalls to `src/syscalls.zig`. [commit: 87f6129]
 - [x] Task: Implement basic process spawning logic in a new `src/terminal.zig` or `src/main.zig`. [commit: 99e275a]
 - [x] Task: Implement non-blocking output capture from the child process. [commit: ebf45fd]
-- [ ] Task: Add a simple "Ghost Pane" UI element to display captured output.
+- [x] Task: Add a simple "Ghost Pane" UI element to display captured output. [commit: 8f38d94]
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Terminal Relay Foundation' (Protocol in workflow.md)
