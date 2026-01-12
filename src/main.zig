@@ -35,6 +35,7 @@ const ANSI_COLOR_PARAMETER = 37;
 const ANSI_COLOR_PROPERTY = 37;
 
 const ansi_mouse = @import("ansi_mouse.zig");
+const mouse = @import("mouse.zig");
 
 const LSPClient = @import("lsp_client.zig").LSPClient;
 const Config = @import("config.zig").Config;
@@ -1830,7 +1831,7 @@ export fn _start() noreturn {
 
     rawWrite(STDOUT_FILENO, ansi_mouse.ENABLE_MOUSE, ansi_mouse.ENABLE_MOUSE.len);
 
-    var raw_buffer: [6]u8 = undefined; // Support 4-byte escape sequences
+    var raw_buffer: [32]u8 = undefined; // Support SGR mouse sequences
     var normal_mode_buffer: [1]u8 = undefined;
     while (true) {
         const read_result = rawRead(STDIN_FILENO, &raw_buffer, 1);
@@ -1840,17 +1841,94 @@ export fn _start() noreturn {
         }
         if (read_result > 0) {
             if (mapped_ptr) |data| {
+                // Handle Escape Sequences Globally
+                if (raw_buffer[0] == 0x1b) {
+                    var seq_len: usize = 1;
+                    const n1 = rawRead(STDIN_FILENO, raw_buffer[1..].ptr, 1);
+                    if (n1 > 0) {
+                        seq_len += 1;
+                        if (raw_buffer[1] == '[') {
+                            const n2 = rawRead(STDIN_FILENO, raw_buffer[2..].ptr, 1);
+                            if (n2 > 0) {
+                                seq_len += 1;
+                                if (raw_buffer[2] == '<') {
+                                    // Mouse Sequence: \x1b[<...
+                                    var i: usize = 3;
+                                    while (i < 32) {
+                                        const nm = rawRead(STDIN_FILENO, raw_buffer[i..].ptr, 1);
+                                        if (nm == 0) break;
+                                        seq_len += 1;
+                                        if (raw_buffer[i] == 'M' or raw_buffer[i] == 'm') break;
+                                        i += 1;
+                                    }
+                                    
+                                    if (mouse.parseSgrMouse(raw_buffer[0..seq_len])) |event| {
+                                        if (event.pressed) {
+                                            if (event.button == 0) { // Left Click
+                                                if (event.row > 1) { // Skip status bar
+                                                    const target_row = editor_state.line_offset + (event.row - 2);
+                                                    editor_state.cursor_row = @min(target_row, getTotalLines(data, file_size) - 1);
+                                                    editor_state.cursor_col = @min(event.col - 1, getLineLength(data, file_size, editor_state.cursor_row));
+                                                }
+                                            } else if (event.button == 64) { // Scroll Up
+                                                moveCursor(data, file_size, &editor_state, .up);
+                                                moveCursor(data, file_size, &editor_state, .up);
+                                                moveCursor(data, file_size, &editor_state, .up);
+                                            } else if (event.button == 65) { // Scroll Down
+                                                moveCursor(data, file_size, &editor_state, .down);
+                                                moveCursor(data, file_size, &editor_state, .down);
+                                                moveCursor(data, file_size, &editor_state, .down);
+                                            }
+                                        }
+                                        ensureCursorVisible(&editor_state, data, file_size);
+                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                    }
+                                    continue;
+                                } else {
+                                    // Handle Arrows and other CSI sequences globally
+                                    if (raw_buffer[2] == 'A') moveCursor(data, file_size, &editor_state, .up);
+                                    if (raw_buffer[2] == 'B') moveCursor(data, file_size, &editor_state, .down);
+                                    if (raw_buffer[2] == 'C') moveCursor(data, file_size, &editor_state, .right);
+                                    if (raw_buffer[2] == 'D') moveCursor(data, file_size, &editor_state, .left);
+                                    if (raw_buffer[2] == 'H') moveCursor(data, file_size, &editor_state, .home);
+                                    if (raw_buffer[2] == 'F') moveCursor(data, file_size, &editor_state, .end);
+                                    if (raw_buffer[2] == '3') {
+                                        const n3 = rawRead(STDIN_FILENO, raw_buffer[3..].ptr, 1);
+                                        if (n3 > 0 and raw_buffer[3] == '~') {
+                                            deleteChar(data, editor_state.file_size, &editor_state, false);
+                                            editor_state.modified = true;
+                                        }
+                                    }
+                                    ensureCursorVisible(&editor_state, data, file_size);
+                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                    continue;
+                                }
+                            }
+                        } else {
+                            // Just ESC
+                            if (editor_state.insert_mode) {
+                                editor_state.insert_mode = false;
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            } else if (editor_state.search_mode) {
+                                editor_state.search_mode = false;
+                                editor_state.search_len = 0;
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            } else if (in_command) {
+                                in_command = false;
+                                editor_state.command_len = 0;
+                            }
+                            continue;
+                        }
+                    }
+                }
+
                 // Handle Ctrl+Z (undo) - ASCII 26
                 if (raw_buffer[0] == 26) {
                     undoOperation(data, &editor_state);
                     renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
                 } else if (editor_state.search_mode) {
                     // Search mode input
-                    if (raw_buffer[0] == 27) { // ESC to cancel search
-                        editor_state.search_mode = false;
-                        editor_state.search_len = 0;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                    } else if (raw_buffer[0] == 13) { // Enter to execute search
+                    if (raw_buffer[0] == 13) { // Enter to execute search
                         executeSearch(data, file_size, &editor_state);
                         editor_state.search_mode = false;
                         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
@@ -1873,10 +1951,7 @@ export fn _start() noreturn {
                     in_command = true;
                     editor_state.command_len = 0;
                 } else if (in_command) {
-                    if (raw_buffer[0] == 27) { // ESC to cancel command
-                        in_command = false;
-                        editor_state.command_len = 0;
-                    } else if (raw_buffer[0] == 13) { // Enter to execute command
+                    if (raw_buffer[0] == 13) { // Enter to execute command
                         const cmd = editor_state.command_buffer[0..editor_state.command_len];
                         if (cmd.len > 3 and cmd[0] == 'l' and cmd[1] == 's' and cmd[2] == 'p') {
                             const server_name = cmd[4..];
@@ -1951,41 +2026,9 @@ export fn _start() noreturn {
                         editor_state.cursor_row = 0;
                         editor_state.cursor_col = 0;
                         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                    } else if (raw_buffer[0] == 'j' or raw_buffer[0] == 0x1b) {
-                        // j key or down arrow - handle escape sequence for arrow key
-                        if (raw_buffer[0] == 0x1b) {
-                            const read_more = rawRead(STDIN_FILENO, raw_buffer[1..].ptr, 1);
-                            if (read_more > 0 and raw_buffer[1] == '[') {
-                                const read_more2 = rawRead(STDIN_FILENO, raw_buffer[2..].ptr, 1);
-                                if (read_more2 > 0) {
-                                    if (raw_buffer[2] == 'B') { // Down arrow
-                                        moveCursor(data, file_size, &editor_state, .down);
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                    } else if (raw_buffer[2] == 'A') { // Up arrow
-                                        moveCursor(data, file_size, &editor_state, .up);
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                    } else if (raw_buffer[2] == 'C') { // Right arrow
-                                        moveCursor(data, file_size, &editor_state, .right);
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                    } else if (raw_buffer[2] == 'D') { // Left arrow
-                                        moveCursor(data, file_size, &editor_state, .left);
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                    } else if (raw_buffer[2] == 'H') { // Home key
-                                        moveCursor(data, file_size, &editor_state, .home);
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                    } else if (raw_buffer[2] == 'F') { // End key
-                                        moveCursor(data, file_size, &editor_state, .end);
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                    }
-                                }
-                            }
-                        } else if (editor_state.line_offset < countLines(data, file_size) - 20) {
+                    } else if (raw_buffer[0] == 'j') {
+                        // j key - scroll down
+                        if (editor_state.line_offset < countLines(data, file_size) - 20) {
                             const new_offset = editor_state.line_offset + 1;
                             editor_state.line_offset = new_offset;
                             renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
@@ -2041,43 +2084,7 @@ export fn _start() noreturn {
                         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
                     }
                 } else if (editor_state.insert_mode) {
-                    if (raw_buffer[0] == 27) { // ESC key - might be start of escape sequence
-                        const read_more = rawRead(STDIN_FILENO, raw_buffer[1..].ptr, 1);
-                        if (read_more > 0 and raw_buffer[1] == '[') {
-                            const read_more2 = rawRead(STDIN_FILENO, raw_buffer[2..].ptr, 1);
-                            if (read_more2 > 0 and raw_buffer[2] == '3') {
-                                const read_more3 = rawRead(STDIN_FILENO, raw_buffer[3..].ptr, 1);
-                                if (read_more3 > 0 and raw_buffer[3] == '~') {
-                                    // Delete key pressed
-                                    deleteChar(data, editor_state.file_size, &editor_state, false);
-                                    editor_state.modified = true;
-                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                }
-                            } else if (read_more2 > 0) {
-                                if (raw_buffer[2] == 'A' or raw_buffer[2] == 'B' or raw_buffer[2] == 'C' or raw_buffer[2] == 'D') {
-                                    // Arrow key in insert mode - move cursor
-                                    if (raw_buffer[2] == 'A') moveCursor(data, file_size, &editor_state, .up);
-                                    if (raw_buffer[2] == 'B') moveCursor(data, file_size, &editor_state, .down);
-                                    if (raw_buffer[2] == 'C') moveCursor(data, file_size, &editor_state, .right);
-                                    if (raw_buffer[2] == 'D') moveCursor(data, file_size, &editor_state, .left);
-                                    ensureCursorVisible(&editor_state, data, file_size);
-                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                } else if (raw_buffer[2] == 'H') { // Home in insert mode
-                                    moveCursor(data, file_size, &editor_state, .home);
-                                    ensureCursorVisible(&editor_state, data, file_size);
-                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                } else if (raw_buffer[2] == 'F') { // End in insert mode
-                                    moveCursor(data, file_size, &editor_state, .end);
-                                    ensureCursorVisible(&editor_state, data, file_size);
-                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                                }
-                            }
-                        } else {
-                            // ESC pressed (not part of escape sequence)
-                            editor_state.insert_mode = false;
-                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
-                        }
-                    } else if (raw_buffer[0] == 8) { // Backspace (ASCII 8)
+                    if (raw_buffer[0] == 8) { // Backspace (ASCII 8)
                         deleteChar(data, editor_state.file_size, &editor_state, true);
                         editor_state.modified = true;
                         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
