@@ -3,9 +3,9 @@
 ## Phase 1: Mouse Support (Phase 18)
 - [x] Task: Research and define ANSI mouse escape sequences (X10 vs SGR). [commit: 731c964]
 - [x] Task: Update `src/main.zig` event loop to enable mouse reporting. [commit: e528680]
-- [ ] Task: Implement mouse sequence parser in `src/main.zig`.
-- [ ] Task: Map mouse click events to cursor positioning logic.
-- [ ] Task: Map scroll wheel events to viewport `line_offset` adjustment.
+- [x] Task: Implement mouse sequence parser in `src/main.zig`. [commit: 9f37b51]
+- [x] Task: Map mouse click events to cursor positioning logic. [commit: 9f37b51]
+- [x] Task: Map scroll wheel events to viewport `line_offset` adjustment. [commit: 9f37b51]
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Mouse Support' (Protocol in workflow.md)
 
 ## Phase 2: Terminal Relay Foundation
