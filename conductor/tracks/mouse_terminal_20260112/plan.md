@@ -9,7 +9,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Mouse Support' (Protocol in workflow.md)
 
 ## Phase 2: Terminal Relay Foundation
-- [ ] Task: Add `fork`, `execve`, `pipe`, `dup2`, and `waitpid` syscalls to `src/syscalls.zig`.
+- [x] Task: Add `fork`, `execve`, `pipe`, `dup2`, and `waitpid` syscalls to `src/syscalls.zig`. [commit: 87f6129]
 - [ ] Task: Implement basic process spawning logic in a new `src/terminal.zig` or `src/main.zig`.
 - [ ] Task: Implement non-blocking output capture from the child process.
 - [ ] Task: Add a simple "Ghost Pane" UI element to display captured output.
