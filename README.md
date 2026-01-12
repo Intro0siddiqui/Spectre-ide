@@ -4,9 +4,9 @@ A minimalist freestanding text editor built with Zig, targeting binary size unde
 
 ## Project Status
 
-**Phase 2 Complete** - Memory-mapped file editing implemented
+**Phase 7 Complete** - Full-featured editor with undo/redo
 
-- **Binary Size:** 1.6KB (Target: <600KB)
+- **Binary Size:** 11KB (Target: <600KB) - Prebuilt binary available
 - **RAM Usage:** Minimal (uses OS paging for large files)
 - **Architecture:** Zero-copy via mmap
 - **Platform:** Linux x86_64 freestanding (no LibC)
@@ -17,11 +17,13 @@ A minimalist freestanding text editor built with Zig, targeting binary size unde
 - [x] Direct Linux syscalls via inline assembly
 - [x] Memory-mapped file I/O (zero-copy)
 - [x] Zero-Copy architecture for files larger than physical RAM
-- [x] Viewport rendering
-- [x] Scroll navigation (j/k)
-- [ ] ANSI diff rendering (Phase 3)
-- [ ] File saving with dirty pages (Phase 4)
-- [ ] Command-line argument parsing (Phase 5)
+- [x] Viewport rendering with efficient delta updates
+- [x] Scroll navigation (j/k keys)
+- [x] File saving with msync ( :w command)
+- [x] Command-line argument parsing
+- [x] Character insertion mode (i key)
+- [x] Undo/Redo system (Ctrl+Z)
+- [x] Prebuilt binary (no Zig installation required)
 
 ## Building
 
@@ -39,12 +41,15 @@ ls -lh zig-out/bin/spectre-ide
 ### Quick Start (Linux x86_64)
 
 ```bash
-# Use pre-built binary
-./bin/spectre-ide
+# Use pre-built binary (no Zig installation needed!)
+./bin/spectre-ide your_file.txt
 
 # Controls:
-#   j - scroll down
-#   k - scroll up
+#   j/k - scroll up/down
+#   i - enter insert mode (type to edit)
+#   ESC - exit insert mode
+#   Ctrl+Z - undo last edit
+#   :w - save file
 #   q - exit
 ```
 
@@ -94,6 +99,7 @@ ZIG.md          - Comprehensive Zig reference guide
 - `fstat` (5) - File size detection
 - `mmap` (9) - Memory mapping
 - `munmap` (11) - Memory unmapping
+- `msync` (26) - File synchronization
 
 ## Documentation
 
@@ -109,9 +115,16 @@ See [ZIG.md](ZIG.md) for comprehensive documentation on:
 
 - **Phase 1:** Freestanding entry and raw syscalls ✓
 - **Phase 2:** Memory-mapped I/O and viewport rendering ✓
-- **Phase 3:** ANSI diff rendering (next)
-- **Phase 4:** File saving
-- **Phase 5:** Command-line parsing
+- **Phase 3:** ANSI diff rendering ✓
+- **Phase 4:** File saving with msync ✓
+- **Phase 5:** Command-line argument parsing ✓
+- **Phase 6:** Character insertion (edit mode) ✓
+- **Phase 7:** Undo/Redo system ✓
+
+**Future Phases:**
+- Phase 8: Delete/Backspace support
+- Phase 9: Cursor movement
+- Phase 10: Line operations
 
 ## License
 
