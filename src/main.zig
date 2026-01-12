@@ -36,6 +36,7 @@ const ANSI_COLOR_PROPERTY = 37;
 
 const ansi_mouse = @import("ansi_mouse.zig");
 const mouse = @import("mouse.zig");
+const terminal = @import("terminal.zig");
 
 const LSPClient = @import("lsp_client.zig").LSPClient;
 const Config = @import("config.zig").Config;
@@ -458,6 +459,10 @@ const EditorState = struct {
     buffer_index: usize = 0,
     buffer_count: usize = 1,
     config: Config = .{},
+    terminal_relay: terminal.CommandRelay = terminal.CommandRelay.init(),
+    terminal_active: bool = false,
+    terminal_buffer: [4096]u8 = [_]u8{0} ** 4096,
+    terminal_len: usize = 0,
 };
 
 const MAX_BUFFERS = 16;
@@ -966,6 +971,43 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         row += 1;
         if (display_offset < size and data[display_offset] == '\n') {
             display_offset += 1;
+        }
+    }
+
+    // Process Terminal Relay
+    if (editor_state.terminal_active) {
+        // Read new output
+        const remaining = 4096 - editor_state.terminal_len;
+        if (remaining > 0) {
+            const bytes_read = editor_state.terminal_relay.readOutput(editor_state.terminal_buffer[editor_state.terminal_len..]);
+            if (bytes_read > 0) {
+                editor_state.terminal_len += bytes_read;
+            }
+        }
+
+        // Render Overlay (Bottom 10 lines)
+        const term_start_row = SCREEN_ROWS - 10;
+        // Divider
+        for (0..SCREEN_COLS) |c| {
+            screen_buffer.setChar(term_start_row, c, '-');
+        }
+        // Content
+        var tr: usize = term_start_row + 1;
+        var tc: usize = 0;
+        for (0..editor_state.terminal_len) |i| {
+            const ch = editor_state.terminal_buffer[i];
+            if (ch == '\n') {
+                tr += 1;
+                tc = 0;
+            } else if (ch >= 32 and ch <= 126) {
+                screen_buffer.setChar(tr, tc, ch);
+                tc += 1;
+                if (tc >= SCREEN_COLS) {
+                    tr += 1;
+                    tc = 0;
+                }
+            }
+            if (tr >= SCREEN_ROWS - 1) break;
         }
     }
 
@@ -1925,6 +1967,10 @@ export fn zig_start(sp: usize) usize {
                             // Just ESC
                             if (editor_state.insert_mode) {
                                 editor_state.insert_mode = false;
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            } else if (editor_state.terminal_active) {
+                                editor_state.terminal_active = false;
+                                editor_state.terminal_relay.kill();
                                 renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
                             } else if (editor_state.search_mode) {
                                 editor_state.search_mode = false;

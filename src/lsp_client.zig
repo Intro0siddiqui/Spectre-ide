@@ -45,46 +45,46 @@ pub const LSPClient = struct {
     }
 
     pub fn startServer(self: *LSPClient, server_name: [*]const u8, args: [*]const ?[*]const u8) bool {
-        var pipe_stdin: [2]usize = undefined;
-        var pipe_stdout: [2]usize = undefined;
+        var pipe_stdin: [2]i32 = undefined;
+        var pipe_stdout: [2]i32 = undefined;
 
         if (Syscalls.rawPipe(&pipe_stdin) != 0) return false;
         if (Syscalls.rawPipe(&pipe_stdout) != 0) {
-            _ = Syscalls.rawClose(pipe_stdin[0]);
-            _ = Syscalls.rawClose(pipe_stdin[1]);
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[0])));
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[1])));
             return false;
         }
 
         const pid = Syscalls.rawFork();
         if (pid == 0) {
-            _ = Syscalls.rawClose(pipe_stdin[1]);
-            _ = Syscalls.rawClose(pipe_stdout[0]);
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[1])));
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdout[0])));
 
-            _ = Syscalls.rawDup2(pipe_stdin[0], 0);
-            _ = Syscalls.rawDup2(pipe_stdout[1], 1);
+            _ = Syscalls.rawDup2(@as(usize, @intCast(pipe_stdin[0])), 0);
+            _ = Syscalls.rawDup2(@as(usize, @intCast(pipe_stdout[1])), 1);
 
-            _ = Syscalls.rawClose(pipe_stdin[0]);
-            _ = Syscalls.rawClose(pipe_stdout[1]);
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[0])));
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdout[1])));
 
             const envp = Syscalls.createEnvp();
             _ = Syscalls.rawExecve(server_name, args, envp);
 
             Syscalls.rawExit(127);
         } else if (pid > 0) {
-            _ = Syscalls.rawClose(pipe_stdin[0]);
-            _ = Syscalls.rawClose(pipe_stdout[1]);
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[0])));
+            _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdout[1])));
 
             self.child_pid = pid;
-            self.stdin_fd = pipe_stdin[1];
-            self.stdout_fd = pipe_stdout[0];
+            self.stdin_fd = @as(usize, @intCast(pipe_stdin[1]));
+            self.stdout_fd = @as(usize, @intCast(pipe_stdout[0]));
 
             return true;
         }
 
-        _ = Syscalls.rawClose(pipe_stdin[0]);
-        _ = Syscalls.rawClose(pipe_stdin[1]);
-        _ = Syscalls.rawClose(pipe_stdout[0]);
-        _ = Syscalls.rawClose(pipe_stdout[1]);
+        _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[0])));
+        _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdin[1])));
+        _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdout[0])));
+        _ = Syscalls.rawClose(@as(usize, @intCast(pipe_stdout[1])));
         return false;
     }
 
