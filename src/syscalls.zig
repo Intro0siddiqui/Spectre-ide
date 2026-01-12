@@ -147,7 +147,7 @@ pub fn rawExecve(path: [*]const u8, argv: [*]const ?[*]const u8, envp: [*]const 
 }
 
 pub fn rawWaitpid(pid: usize, status: *i32, options: usize) usize {
-    return syscall3(.wait4, pid, @intFromPtr(status), options);
+    return syscall4(.wait4, pid, @intFromPtr(status), options, 0);
 }
 
 pub fn rawExit(status: usize) noreturn {
