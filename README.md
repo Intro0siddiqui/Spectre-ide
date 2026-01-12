@@ -114,7 +114,7 @@ IMPLEMENTATION_PLAN.md - Feature roadmap
 
 ## License
 
-MIT
+Apache-2.0 
 
 ---
 
