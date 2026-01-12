@@ -1,7 +1,7 @@
 # Plan - Mouse Support and Terminal Relay Foundation
 
 ## Phase 1: Mouse Support (Phase 18)
-- [ ] Task: Research and define ANSI mouse escape sequences (X10 vs SGR).
+- [x] Task: Research and define ANSI mouse escape sequences (X10 vs SGR). [commit: 731c964]
 - [ ] Task: Update `src/main.zig` event loop to enable mouse reporting.
 - [ ] Task: Implement mouse sequence parser in `src/main.zig`.
 - [ ] Task: Map mouse click events to cursor positioning logic.
