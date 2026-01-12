@@ -1777,17 +1777,34 @@ fn startLspServer(editor_state: *EditorState, filename: [*]const u8, data: [*]co
     }
 }
 
-export fn _start() noreturn {
-    const args = parseArgcArgv();
+comptime {
+    asm (
+        \\.global _start
+        \\_start:
+        \\  xor %rbp, %rbp
+        \\  mov %rsp, %rdi
+        \\  and $-16, %rsp
+        \\  call zig_start
+        \\  mov %rax, %rdi
+        \\  mov $60, %rax
+        \\  syscall
+    );
+}
 
-    const default_file = "/tmp/test_file.txt";
-    const filename_ptr = if (args.argc > 1) args.argv[1] else default_file;
-
-    const fd = rawOpen(filename_ptr, O_RDWR, 0);
+export fn zig_start(sp: usize) usize {
+    const argc = @as(*usize, @ptrFromInt(sp)).*;
+    const argv = @as([*][*:0]u8, @ptrFromInt(sp + 8));
+        const args = struct { argc: usize, argv: [*][*:0]u8 }{ .argc = argc, .argv = argv };
+    
+        const default_file = "/tmp/test_file.txt";
+        const filename_ptr: [*:0]const u8 = if (args.argc > 1) args.argv[1] else default_file;
+    
+        const fd = rawOpen(filename_ptr, O_RDWR, 0);
+    
     if (fd < 0) {
         const error_msg = "Error: Could not open file\n";
         rawWrite(STDOUT_FILENO, error_msg, error_msg.len);
-        rawExit(1);
+        return 1;
     }
 
     var stat_buf: [144]u8 = undefined;
@@ -1809,7 +1826,7 @@ export fn _start() noreturn {
         rawWrite(STDOUT_FILENO, error_msg, error_msg.len);
         const close_result = rawClose(fd_usize);
         _ = close_result;
-        rawExit(1);
+        return 1;
     }
 
     const close_result = rawClose(fd_usize);
@@ -1853,13 +1870,13 @@ export fn _start() noreturn {
                                 seq_len += 1;
                                 if (raw_buffer[2] == '<') {
                                     // Mouse Sequence: \x1b[<...
-                                    var i: usize = 3;
-                                    while (i < 32) {
-                                        const nm = rawRead(STDIN_FILENO, raw_buffer[i..].ptr, 1);
+                                    var k: usize = 3;
+                                    while (k < 32) {
+                                        const nm = rawRead(STDIN_FILENO, raw_buffer[k..].ptr, 1);
                                         if (nm == 0) break;
                                         seq_len += 1;
-                                        if (raw_buffer[i] == 'M' or raw_buffer[i] == 'm') break;
-                                        i += 1;
+                                        if (raw_buffer[k] == 'M' or raw_buffer[k] == 'm') break;
+                                        k += 1;
                                     }
                                     
                                     if (mouse.parseSgrMouse(raw_buffer[0..seq_len])) |event| {
@@ -2116,5 +2133,5 @@ export fn _start() noreturn {
         _ = rawMunmap(data, aligned_size);
     }
 
-    rawExit(0);
+    return 0;
 }
