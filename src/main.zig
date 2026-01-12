@@ -34,6 +34,8 @@ const ANSI_COLOR_CLASS = 35;
 const ANSI_COLOR_PARAMETER = 37;
 const ANSI_COLOR_PROPERTY = 37;
 
+const ansi_mouse = @import("ansi_mouse.zig");
+
 const LSPClient = @import("lsp_client.zig").LSPClient;
 const Config = @import("config.zig").Config;
 const getLspServer = @import("lsp_client.zig").getLspServer;
@@ -1826,11 +1828,16 @@ export fn _start() noreturn {
         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
     }
 
+    rawWrite(STDOUT_FILENO, ansi_mouse.ENABLE_MOUSE, ansi_mouse.ENABLE_MOUSE.len);
+
     var raw_buffer: [6]u8 = undefined; // Support 4-byte escape sequences
     var normal_mode_buffer: [1]u8 = undefined;
     while (true) {
         const read_result = rawRead(STDIN_FILENO, &raw_buffer, 1);
-        if (raw_buffer[0] == 'q') break;
+        if (raw_buffer[0] == 'q') {
+            rawWrite(STDOUT_FILENO, ansi_mouse.DISABLE_MOUSE, ansi_mouse.DISABLE_MOUSE.len);
+            break;
+        }
         if (read_result > 0) {
             if (mapped_ptr) |data| {
                 // Handle Ctrl+Z (undo) - ASCII 26
