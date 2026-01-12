@@ -75,7 +75,14 @@ pub const CommandRelay = struct {
             // Parent
             _ = syscalls.rawClose(@as(usize, @intCast(pipefd[1])));
             self.pid = pid;
-            self.read_fd = @as(usize, @intCast(pipefd[0]));
+            const read_fd = @as(usize, @intCast(pipefd[0]));
+            self.read_fd = read_fd;
+            
+            // Set O_NONBLOCK
+            const flags = syscalls.rawFcntl(read_fd, syscalls.F_GETFL, 0);
+            if (@as(isize, @bitCast(flags)) >= 0) {
+                _ = syscalls.rawFcntl(read_fd, syscalls.F_SETFL, flags | syscalls.O_NONBLOCK);
+            }
         }
     }
 

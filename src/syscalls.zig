@@ -59,6 +59,7 @@ pub const Syscall = enum(usize) {
     shmctl = 70,
     dup3 = 24,
     pipe2 = 293,
+    fcntl = 72,
 };
 
 inline fn syscall0(number: Syscall) usize {
@@ -67,6 +68,15 @@ inline fn syscall0(number: Syscall) usize {
         : [number] "{rax}" (@intFromEnum(number)),
     );
 }
+
+// ... (syscall1, 2, 3)
+
+pub fn rawFcntl(fd: usize, cmd: usize, arg: usize) usize {
+    return syscall3(.fcntl, fd, cmd, arg);
+}
+
+pub const F_GETFL: usize = 3;
+pub const F_SETFL: usize = 4;
 
 inline fn syscall1(number: Syscall, arg1: usize) usize {
     return asm volatile ("syscall"
@@ -130,8 +140,15 @@ pub fn rawClose(fd: usize) usize {
     return syscall1(.close, fd);
 }
 
-pub fn rawPipe(fd: *[2]usize) usize {
+pub fn rawPipe(fd: *[2]i32) usize {
     return syscall1(.pipe, @intFromPtr(fd));
+}
+
+pub const O_NONBLOCK: usize = 2048;
+pub const O_CLOEXEC: usize = 524288;
+
+pub fn rawPipe2(fd: *[2]i32, flags: usize) usize {
+    return syscall2(.pipe2, @intFromPtr(fd), flags);
 }
 
 pub fn rawDup2(oldfd: usize, newfd: usize) usize {
