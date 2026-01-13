@@ -6,8 +6,8 @@ const Syscalls = @import("syscalls.zig");
 const Json = @import("json.zig");
 
 const MAX_MESSAGE_SIZE = 4096;
-const MAX_TOKEN_COUNT = 4096;
-const MESSAGE_BUFFER_SIZE = 8192;
+const MAX_TOKEN_COUNT = 1024;
+const MESSAGE_BUFFER_SIZE = 4096;
 
 pub const LSPClient = struct {
     child_pid: ?usize = null,
@@ -20,8 +20,8 @@ pub const LSPClient = struct {
     next_id: usize = 1,
     initialized: bool = false,
 
-    pub fn init() LSPClient {
-        return .{
+    pub fn init(self: *LSPClient) void {
+        self.* = .{
             .child_pid = null,
             .stdin_fd = null,
             .stdout_fd = null,
@@ -331,8 +331,8 @@ pub const SemanticTokens = struct {
     count: usize = 0,
     data: []const u32 = &.{},
 
-    pub fn init() SemanticTokens {
-        return .{
+    pub fn init(self: *SemanticTokens) void {
+        self.* = .{
             .tokens = undefined,
             .count = 0,
             .data = &.{},
@@ -382,11 +382,11 @@ pub const Diagnostic = struct {
 };
 
 pub const Diagnostics = struct {
-    items: [64]Diagnostic,
+    items: [32]Diagnostic,
     count: usize = 0,
 
-    pub fn init() Diagnostics {
-        return .{
+    pub fn init(self: *Diagnostics) void {
+        self.* = .{
             .items = undefined,
             .count = 0,
         };

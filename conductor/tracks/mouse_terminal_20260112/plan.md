@@ -6,11 +6,13 @@
 - [x] Task: Implement mouse sequence parser in `src/main.zig`. [commit: 9f37b51]
 - [x] Task: Map mouse click events to cursor positioning logic. [commit: 9f37b51]
 - [x] Task: Map scroll wheel events to viewport `line_offset` adjustment. [commit: 9f37b51]
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Mouse Support' (Protocol in workflow.md)
+- [x] Task: Resolve runtime stability issue (stack overflow segfault in `_start`).
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Mouse Support' (Protocol in workflow.md)
 
 ## Phase 2: Terminal Relay Foundation [checkpoint: a08267e]
 - [x] Task: Add `fork`, `execve`, `pipe`, `dup2`, and `waitpid` syscalls to `src/syscalls.zig`. [commit: 87f6129]
 - [x] Task: Implement basic process spawning logic in a new `src/terminal.zig` or `src/main.zig`. [commit: 99e275a]
 - [x] Task: Implement non-blocking output capture from the child process. [commit: ebf45fd]
 - [x] Task: Add a simple "Ghost Pane" UI element to display captured output. [commit: 8f38d94]
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Terminal Relay Foundation' (Protocol in workflow.md)
+- [ ] Task: Fix runtime segfault in `_start` caused by stack overflow.
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Terminal Relay' (Protocol in workflow.md)

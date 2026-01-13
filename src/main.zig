@@ -8,6 +8,7 @@ const PROT_READ: usize = 1;
 const PROT_WRITE: usize = 2;
 const PROT_READ_WRITE: usize = 3;
 const MAP_PRIVATE: usize = 0x02;
+const MAP_ANONYMOUS: usize = 0x20;
 const MAP_SHARED: usize = 0x01;
 const MAP_FAILED: isize = -1;
 
@@ -323,7 +324,7 @@ const ScreenBuffer = struct {
     current: [SCREEN_ROWS][SCREEN_COLS]u8 = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS,
 
     fn copyCurrentToPrevious(self: *ScreenBuffer) void {
-        self.previous = self.current;
+        @memcpy(@as(*[SCREEN_ROWS * SCREEN_COLS]u8, @ptrCast(&self.previous)), @as(*[SCREEN_ROWS * SCREEN_COLS]u8, @ptrCast(&self.current)));
     }
 
     fn setChar(self: *ScreenBuffer, row: usize, col: usize, char: u8) void {
@@ -461,7 +462,7 @@ const EditorState = struct {
     config: Config = .{},
     terminal_relay: terminal.CommandRelay = terminal.CommandRelay.init(),
     terminal_active: bool = false,
-    terminal_buffer: [4096]u8 = [_]u8{0} ** 4096,
+    terminal_buffer: [1024]u8 = [_]u8{0} ** 1024,
     terminal_len: usize = 0,
 };
 
@@ -828,6 +829,8 @@ fn getSemanticTokenColor(token_type: u32) u8 {
     };
 }
 
+var global_data_buf: [4096]u32 = undefined;
+
 fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buffer: *ScreenBuffer, editor_state: *EditorState) void {
     // Clear the current buffer
     screen_buffer.current = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS;
@@ -1020,9 +1023,8 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
                 if (containsString(msg, "\"data\":[")) {
                     const data_start = findArrayStart(msg, "\"data\":[");
                     if (data_start) |start| {
-                        var data_buf: [4096]u32 = undefined;
-                        const data_len = parseUint32Array(msg[start..], &data_buf);
-                        editor_state.semantic_tokens.parse(data_buf[0..data_len]);
+                        const data_len = parseUint32Array(msg[start..], &global_data_buf);
+                        editor_state.semantic_tokens.parse(global_data_buf[0..data_len]);
                     }
                 }
             }
@@ -1849,14 +1851,14 @@ export fn zig_start(sp: usize) usize {
         return 1;
     }
 
-    var stat_buf: [144]u8 = undefined;
-    const fd_usize: usize = @bitCast(fd);
-    const stat_result = syscall2(Syscall.fstat, fd_usize, @intFromPtr(&stat_buf));
-    _ = stat_result;
-
     var file_size: usize = 0;
-    const size_ptr: *usize = @ptrFromInt(@intFromPtr(&stat_buf) + 48);
-    file_size = size_ptr.*;
+    const fd_usize: usize = @bitCast(fd);
+    {
+        var stat_buf_local: [144]u8 = undefined;
+        _ = syscall2(Syscall.fstat, fd_usize, @intFromPtr(&stat_buf_local));
+        const size_ptr: *usize = @ptrFromInt(@intFromPtr(&stat_buf_local) + 48);
+        file_size = size_ptr.*;
+    }
 
     if (file_size == 0) file_size = 1024;
 
@@ -1874,18 +1876,30 @@ export fn zig_start(sp: usize) usize {
     const close_result = rawClose(fd_usize);
     _ = close_result;
 
-    var editor_state: EditorState = .{};
+    const state_page_size = alignUp(@sizeOf(EditorState), getPageSize());
+    const state_ptr = rawMmap(null, state_page_size, PROT_READ_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, @as(usize, @bitCast(@as(isize, -1))), 0) orelse {
+        rawWrite(STDOUT_FILENO, "Error: Failed to allocate EditorState\n", 37);
+        return 1;
+    };
+    const editor_state: *EditorState = @ptrCast(@alignCast(state_ptr));
+    @memset(state_ptr[0..@sizeOf(EditorState)], 0);
+    
+    editor_state.viewport.rows = SCREEN_ROWS;
+    editor_state.viewport.cols = SCREEN_COLS;
+    editor_state.file_version = 1;
+    editor_state.buffer_count = 1;
+    editor_state.lsp_client.init();
+    editor_state.semantic_tokens.init();
+    editor_state.diagnostics.init();
+
     editor_state.file_size = file_size;
     editor_state.aligned_size = aligned_size;
     editor_state.filename = filename_ptr;
-    editor_state.lsp_client = LSPClient.init();
-    editor_state.semantic_tokens = SemanticTokens.init();
-    editor_state.diagnostics = Diagnostics.init();
 
     var in_command: bool = false;
 
     if (mapped_ptr) |data| {
-        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
     }
 
     rawWrite(STDOUT_FILENO, ansi_mouse.ENABLE_MOUSE, ansi_mouse.ENABLE_MOUSE.len);
@@ -1930,36 +1944,36 @@ export fn zig_start(sp: usize) usize {
                                                     editor_state.cursor_col = @min(event.col - 1, getLineLength(data, file_size, editor_state.cursor_row));
                                                 }
                                             } else if (event.button == 64) { // Scroll Up
-                                                moveCursor(data, file_size, &editor_state, .up);
-                                                moveCursor(data, file_size, &editor_state, .up);
-                                                moveCursor(data, file_size, &editor_state, .up);
+                                                moveCursor(data, file_size, editor_state, .up);
+                                                moveCursor(data, file_size, editor_state, .up);
+                                                moveCursor(data, file_size, editor_state, .up);
                                             } else if (event.button == 65) { // Scroll Down
-                                                moveCursor(data, file_size, &editor_state, .down);
-                                                moveCursor(data, file_size, &editor_state, .down);
-                                                moveCursor(data, file_size, &editor_state, .down);
+                                                moveCursor(data, file_size, editor_state, .down);
+                                                moveCursor(data, file_size, editor_state, .down);
+                                                moveCursor(data, file_size, editor_state, .down);
                                             }
                                         }
-                                        ensureCursorVisible(&editor_state, data, file_size);
-                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                        ensureCursorVisible(editor_state, data, file_size);
+                                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                                     }
                                     continue;
                                 } else {
                                     // Handle Arrows and other CSI sequences globally
-                                    if (raw_buffer[2] == 'A') moveCursor(data, file_size, &editor_state, .up);
-                                    if (raw_buffer[2] == 'B') moveCursor(data, file_size, &editor_state, .down);
-                                    if (raw_buffer[2] == 'C') moveCursor(data, file_size, &editor_state, .right);
-                                    if (raw_buffer[2] == 'D') moveCursor(data, file_size, &editor_state, .left);
-                                    if (raw_buffer[2] == 'H') moveCursor(data, file_size, &editor_state, .home);
-                                    if (raw_buffer[2] == 'F') moveCursor(data, file_size, &editor_state, .end);
+                                    if (raw_buffer[2] == 'A') moveCursor(data, file_size, editor_state, .up);
+                                    if (raw_buffer[2] == 'B') moveCursor(data, file_size, editor_state, .down);
+                                    if (raw_buffer[2] == 'C') moveCursor(data, file_size, editor_state, .right);
+                                    if (raw_buffer[2] == 'D') moveCursor(data, file_size, editor_state, .left);
+                                    if (raw_buffer[2] == 'H') moveCursor(data, file_size, editor_state, .home);
+                                    if (raw_buffer[2] == 'F') moveCursor(data, file_size, editor_state, .end);
                                     if (raw_buffer[2] == '3') {
                                         const n3 = rawRead(STDIN_FILENO, raw_buffer[3..].ptr, 1);
                                         if (n3 > 0 and raw_buffer[3] == '~') {
-                                            deleteChar(data, editor_state.file_size, &editor_state, false);
+                                            deleteChar(data, editor_state.file_size, editor_state, false);
                                             editor_state.modified = true;
                                         }
                                     }
-                                    ensureCursorVisible(&editor_state, data, file_size);
-                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                    ensureCursorVisible(editor_state, data, file_size);
+                                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                                     continue;
                                 }
                             }
@@ -1967,15 +1981,15 @@ export fn zig_start(sp: usize) usize {
                             // Just ESC
                             if (editor_state.insert_mode) {
                                 editor_state.insert_mode = false;
-                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                             } else if (editor_state.terminal_active) {
                                 editor_state.terminal_active = false;
                                 editor_state.terminal_relay.kill();
-                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                             } else if (editor_state.search_mode) {
                                 editor_state.search_mode = false;
                                 editor_state.search_len = 0;
-                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                             } else if (in_command) {
                                 in_command = false;
                                 editor_state.command_len = 0;
@@ -1987,28 +2001,28 @@ export fn zig_start(sp: usize) usize {
 
                 // Handle Ctrl+Z (undo) - ASCII 26
                 if (raw_buffer[0] == 26) {
-                    undoOperation(data, &editor_state);
-                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                    undoOperation(data, editor_state);
+                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                 } else if (editor_state.search_mode) {
                     // Search mode input
                     if (raw_buffer[0] == 13) { // Enter to execute search
-                        executeSearch(data, file_size, &editor_state);
+                        executeSearch(data, file_size, editor_state);
                         editor_state.search_mode = false;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'n') { // Next match
-                        executeSearch(data, file_size, &editor_state);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        executeSearch(data, file_size, editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'N') { // Previous match
-                        executeSearchBackward(data, file_size, &editor_state);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        executeSearchBackward(data, file_size, editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 8 and editor_state.search_len > 0) { // Backspace
                         editor_state.search_len -= 1;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] >= 32 and raw_buffer[0] <= 126 and editor_state.search_len < SEARCH_BUFFER_SIZE) {
                         // Add character to search buffer
                         editor_state.search_buffer[editor_state.search_len] = raw_buffer[0];
                         editor_state.search_len += 1;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     }
                 } else if (raw_buffer[0] == ':') {
                     in_command = true;
@@ -2021,7 +2035,7 @@ export fn zig_start(sp: usize) usize {
                             if (server_name.len > 0) {
                                 @memcpy(editor_state.lsp_server_name[0..server_name.len], server_name);
                                 editor_state.lsp_server_name[server_name.len] = 0;
-                                startLspServer(&editor_state, filename_ptr, data, file_size);
+                                startLspServer(editor_state, filename_ptr, data, file_size);
                             }
                         } else if (cmd.len > 3 and cmd[0] == 's' and cmd[1] == 'e' and cmd[2] == 't') {
                             const option = cmd[4..];
@@ -2048,8 +2062,8 @@ export fn zig_start(sp: usize) usize {
                                 line_num = line_num * 10 + @as(usize, @intCast(c - '0'));
                             }
                             if (is_number and line_num > 0) {
-                                gotoLine(&editor_state, data, file_size, line_num);
-                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                                gotoLine(editor_state, data, file_size, line_num);
+                                renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                             }
                         }
                         in_command = false;
@@ -2064,9 +2078,9 @@ export fn zig_start(sp: usize) usize {
                     // Enter search mode
                     editor_state.search_mode = true;
                     editor_state.search_len = 0;
-                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                 } else if (in_command and raw_buffer[0] == 'w') {
-                    _ = saveFile(data, aligned_size, editor_state.modified, &editor_state);
+                    _ = saveFile(data, aligned_size, editor_state.modified, editor_state);
                     in_command = false;
                 } else if (!editor_state.insert_mode) {
                     // Handle multi-key commands like 'dd'
@@ -2074,92 +2088,92 @@ export fn zig_start(sp: usize) usize {
                         const read_result2 = rawRead(STDIN_FILENO, &normal_mode_buffer, 1);
                         if (read_result2 > 0 and normal_mode_buffer[0] == 'd') {
                             // dd command - delete current line
-                            deleteLine(data, file_size, &editor_state);
+                            deleteLine(data, file_size, editor_state);
                             editor_state.modified = true;
-                            ensureCursorVisible(&editor_state, data, file_size);
-                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            ensureCursorVisible(editor_state, data, file_size);
+                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                         }
                     } else if (raw_buffer[0] == 'J') {
                         // J command - join lines
-                        joinLine(data, file_size, &editor_state);
+                        joinLine(data, file_size, editor_state);
                         editor_state.modified = true;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'i') {
                         editor_state.insert_mode = true;
                         editor_state.cursor_row = 0;
                         editor_state.cursor_col = 0;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'j') {
                         // j key - scroll down
                         if (editor_state.line_offset < countLines(data, file_size) - 20) {
                             const new_offset = editor_state.line_offset + 1;
                             editor_state.line_offset = new_offset;
-                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                         }
                     } else if (raw_buffer[0] == 'k') {
                         if (editor_state.line_offset > 0) {
                             const new_offset = editor_state.line_offset - 1;
                             editor_state.line_offset = new_offset;
-                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                         }
                     } else if (raw_buffer[0] == 'h') { // Move left (vim-style)
-                        moveCursor(data, file_size, &editor_state, .left);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .left);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'l') { // Move right (vim-style)
-                        moveCursor(data, file_size, &editor_state, .right);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .right);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == '0') { // Home (vim-style)
-                        moveCursor(data, file_size, &editor_state, .home);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .home);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == '$') { // End (vim-style)
-                        moveCursor(data, file_size, &editor_state, .end);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .end);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'g') { // First g for gg
                         const read_more = rawRead(STDIN_FILENO, raw_buffer[1..].ptr, 1);
                         if (read_more > 0 and raw_buffer[1] == 'g') {
-                            moveCursor(data, file_size, &editor_state, .page_begin);
-                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                            moveCursor(data, file_size, editor_state, .page_begin);
+                            renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                         }
                     } else if (raw_buffer[0] == 'G') { // Goto end
-                        moveCursor(data, file_size, &editor_state, .page_end);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .page_end);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'w') { // Word next
-                        moveCursor(data, file_size, &editor_state, .word_next);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .word_next);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'b') { // Word previous
-                        moveCursor(data, file_size, &editor_state, .word_prev);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .word_prev);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 'e') { // Word end
-                        moveCursor(data, file_size, &editor_state, .word_end);
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .word_end);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 2) { // Ctrl+B - Page Up
-                        moveCursor(data, file_size, &editor_state, .page_up);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .page_up);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 6) { // Ctrl+F - Page Down
-                        moveCursor(data, file_size, &editor_state, .page_down);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        moveCursor(data, file_size, editor_state, .page_down);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     }
                 } else if (editor_state.insert_mode) {
                     if (raw_buffer[0] == 8) { // Backspace (ASCII 8)
-                        deleteChar(data, editor_state.file_size, &editor_state, true);
+                        deleteChar(data, editor_state.file_size, editor_state, true);
                         editor_state.modified = true;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] == 13) { // Enter key
-                        splitLine(data, file_size, &editor_state);
+                        splitLine(data, file_size, editor_state);
                         editor_state.modified = true;
-                        ensureCursorVisible(&editor_state, data, file_size);
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        ensureCursorVisible(editor_state, data, file_size);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     } else if (raw_buffer[0] >= 32 and raw_buffer[0] <= 126) { // Printable characters
-                        insertChar(data, editor_state.file_size, &editor_state, raw_buffer[0]);
+                        insertChar(data, editor_state.file_size, editor_state, raw_buffer[0]);
                         editor_state.modified = true;
-                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, &editor_state);
+                        renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
                     }
                 }
             }
