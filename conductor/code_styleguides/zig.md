@@ -31,80 +31,105 @@
 
 ### Build System (build.zig)
 
-The `build.zig` file configures Zig build system for freestanding targets:
+The `build.zig` file configures Zig build system for freestanding targets. **Note:** Spectre-IDE uses Zig 0.15.2 patterns:
 
 ```zig
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    // Create module with source, target and optimize
-    const mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = b.standardTargetOptions(.{
-            .default_target = .{
-                .cpu_arch = .x86_64,
-                .os_tag = .freestanding,
-            },
-        }),
-        .optimize = b.standardOptimizeOption(.{
-            .preferred_optimize_mode = .ReleaseSmall,
-        }),
-        .unwind_tables = .none,
-        .single_threaded = true,
+    const target = b.standardTargetOptions(.{
+        .default_target = .{
+            .cpu_arch = .x86_64,
+            .os_tag = .freestanding,
+        },
     });
+
+    const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
         .name = "spectre-ide",
-        .root_module = mod,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .single_threaded = true,
+        }),
     });
+    
+    // Explicitly set entry point for freestanding
+    exe.entry = .{ .symbol_name = "_start" };
+    // Add separate assembly for robust entry point
+    exe.addAssemblyFile(b.path("src/start.S"));
 
     b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run Spectre-IDE");
-    run_step.dependOn(&run_cmd.step);
 }
 ```
 
-**Key Module Options:**
-- `unwind_tables = .none`: Disables unwind tables
-- `single_threaded = true`: Disables threading support
-- `optimize = .ReleaseSmall`: Optimizes for minimal binary size
+**Key API Changes (Zig 0.15.2+):**
+- `addExecutable` requires `root_module` which is created via `b.createModule`.
+- `root_source_file`, `target`, and `optimize` are now set in the `Module`.
+- `exe.entry`: A union of type `Entry`. Use `.{ .symbol_name = "_start" }` for custom entry points.
+- `addAssemblyFile`: Used to include `.S` files for the entry point.
 
 ---
 
 ## Freestanding Mode
 
-Freestanding mode bypasses standard library (LibC) for minimal binary size.
-
-### What is Freestanding Mode?
-
-Freestanding targets have no operating system or standard library. The program must:
-- Define its own `_start` entry point
-- Handle all memory allocation manually
-- Make direct system calls via assembly
-
 ### Entry Point
 
-In freestanding mode, you define entry point manually using `export fn _start() noreturn`. No `callconv` is needed in Zig 0.16+.
+In freestanding mode, defining `_start` via Zig's `export fn` can be problematic due to automatic function prologues (like stack adjustments) that interfere with initial stack pointer capture.
 
+**Recommended Approach:** Use a separate `.S` assembly file for the true entry point.
+
+**src/start.S:**
+```assembly
+.global _start
+.type _start, @function
+_start:
+    xor %rbp, %rbp      # Clear frame pointer
+    mov %rsp, %rdi      # Pass original stack pointer as first argument
+    and $-16, %rsp     # Align stack to 16 bytes
+    call zig_start      # Call Zig logic
+    mov %rax, %rdi      # Pass return value to exit status
+    mov $60, %rax       # exit syscall
+    syscall
+```
+
+**src/main.zig:**
 ```zig
-export fn _start() noreturn {
-    // Your code here
+export fn zig_start(sp: usize) usize {
+    const argc = @as(*usize, @ptrFromInt(sp)).*;
+    const argv = @as([*][*:0]u8, @ptrFromInt(sp + 8));
+    // ...
+    return 0;
 }
 ```
 
 **Key Points:**
-- `export`: Makes function visible to the linker
-- `_start`: Standard entry point name (required for Linux)
-- `noreturn`: Function never returns
-- **Zig 0.16+**: No `callconv` needed - uses default C calling convention
+- **Stack Alignment:** The x86_64 ABI requires the stack to be 16-byte aligned before a `call`.
+- **Calling Convention:** Use lowercase `.naked` if using `callconv(.naked)` in Zig code (though separate `.S` is more robust).
+- **Argc/Argv:** In freestanding Linux, `%rsp` points to `argc`, followed by `argv` pointers.
+
+---
+
+## Common Issues and Solutions
+
+### Integer Division / Remainder
+Zig is strict about types. If you have an `isize` (like a syscall return) and want to use `%`, you must be explicit:
+```zig
+const err_val = -fd; // where fd is isize
+var u_err_val = @as(usize, @bitCast(err_val));
+const digit = u_err_val % 10;
+```
+
+### Stack Overflows
+Large structs (like `EditorState` > 50KB) allocated as local variables or passed by value will cause immediate segmentation faults in freestanding environments with limited stacks.
+- **Solution:** `mmap` large state structures or use global/static buffers.
+- **Solution:** Always pass large structs by pointer (`*EditorState`).
+
+### Calling Convention Names
+In Zig 0.15.2+, `builtin.CallingConvention` members are lowercase:
+- Use `callconv(.naked)` instead of `callconv(.Naked)`.
 
 ---
 

@@ -832,8 +832,10 @@ fn getSemanticTokenColor(token_type: u32) u8 {
 var global_data_buf: [4096]u32 = undefined;
 
 fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buffer: *ScreenBuffer, editor_state: *EditorState) void {
+    rawWrite(STDOUT_FILENO, "Debug: renderViewport entered\n", 30);
     // Clear the current buffer
     screen_buffer.current = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS;
+    rawWrite(STDOUT_FILENO, "Debug: screen_buffer cleared\n", 29);
 
     // Enhanced status bar (row 0)
     var status_col: usize = 0;
@@ -845,6 +847,7 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         status_col += 1;
         if (status_col >= SCREEN_COLS) break;
     }
+    rawWrite(STDOUT_FILENO, "Debug: status bar mode done\n", 28);
 
     // Line and column (1-based)
     const line_num = editor_state.cursor_row + 1;
@@ -852,47 +855,66 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
     var num_buf: [16]u8 = undefined;
     var num_len: usize = 0;
 
+    rawWrite(STDOUT_FILENO, "Debug: line num start\n", 22);
     // Convert line number to string
     var n = line_num;
     if (n == 0) {
-        num_buf[num_len] = '0';
-        num_len += 1;
+        if (num_len < 16) {
+            num_buf[num_len] = '0';
+            num_len += 1;
+        }
     } else {
-        var digits: [16]u8 = undefined;
+        var digits: [32]u8 = undefined; // Increased to 32 to be safe
         var digit_count: usize = 0;
         while (n > 0) : (n /= 10) {
-            digits[digit_count] = '0' + @as(u8, @intCast(n % 10));
-            digit_count += 1;
+            if (digit_count < 32) {
+                digits[digit_count] = '0' + @as(u8, @intCast(n % 10));
+                digit_count += 1;
+            }
         }
         var d: usize = digit_count;
         while (d > 0) : (d -= 1) {
-            num_buf[num_len] = digits[d - 1];
-            num_len += 1;
+            if (num_len < 16) {
+                num_buf[num_len] = digits[d - 1];
+                num_len += 1;
+            }
         }
     }
+    rawWrite(STDOUT_FILENO, "Debug: line num end\n", 20);
 
     // Add colon
-    num_buf[num_len] = ',';
-    num_len += 1;
+    if (num_len < 16) {
+        num_buf[num_len] = ',';
+        num_len += 1;
+    }
+    rawWrite(STDOUT_FILENO, "Debug: colon added\n", 19);
 
     // Convert column number to string
+    rawWrite(STDOUT_FILENO, "Debug: col num start\n", 21);
     n = col_num;
     if (n == 0) {
-        num_buf[num_len] = '0';
-        num_len += 1;
+        if (num_len < 16) {
+            num_buf[num_len] = '0';
+            num_len += 1;
+        }
     } else {
-        var digits: [16]u8 = undefined;
+        var digits: [32]u8 = undefined;
         var digit_count: usize = 0;
         while (n > 0) : (n /= 10) {
-            digits[digit_count] = '0' + @as(u8, @intCast(n % 10));
-            digit_count += 1;
+            if (digit_count < 32) {
+                digits[digit_count] = '0' + @as(u8, @intCast(n % 10));
+                digit_count += 1;
+            }
         }
         var d: usize = digit_count;
         while (d > 0) : (d -= 1) {
-            num_buf[num_len] = digits[d - 1];
-            num_len += 1;
+            if (num_len < 16) {
+                num_buf[num_len] = digits[d - 1];
+                num_len += 1;
+            }
         }
     }
+    rawWrite(STDOUT_FILENO, "Debug: col num end\n", 19);
 
     for (num_buf[0..num_len]) |c| {
         screen_buffer.setChar(0, status_col, c);
@@ -1821,48 +1843,104 @@ fn startLspServer(editor_state: *EditorState, filename: [*]const u8, data: [*]co
     }
 }
 
-comptime {
-    asm (
-        \\.global _start
-        \\_start:
-        \\  xor %rbp, %rbp
-        \\  mov %rsp, %rdi
-        \\  and $-16, %rsp
-        \\  sub $1048576, %rsp
-        \\  call zig_start
-        \\  add $1048576, %rsp
-        \\  mov %rax, %rdi
-        \\  mov $60, %rax
-        \\  syscall
-    );
-}
 
 export fn zig_start(sp: usize) usize {
+    rawWrite(STDOUT_FILENO, "Debug: zig_start entered, sp=", 29);
+    
+    var sp_val = sp;
+    var sp_buf: [32]u8 = undefined;
+    var sp_i: usize = 0;
+    if (sp_val == 0) {
+        sp_buf[0] = '0';
+        sp_i = 1;
+    } else {
+        while (sp_val > 0) {
+            const digit = @as(u8, @intCast(sp_val % 16));
+            sp_buf[sp_i] = if (digit < 10) '0' + digit else 'a' + (digit - 10);
+            sp_i += 1;
+            sp_val /= 16;
+        }
+        for (0..sp_i / 2) |j| {
+            const tmp = sp_buf[j];
+            sp_buf[j] = sp_buf[sp_i - 1 - j];
+            sp_buf[sp_i - 1 - j] = tmp;
+        }
+    }
+    rawWrite(STDOUT_FILENO, &sp_buf, sp_i);
+    rawWrite(STDOUT_FILENO, "\n", 1);
+    
     const argc = @as(*usize, @ptrFromInt(sp)).*;
-    const argv = @as([*][*:0]u8, @ptrFromInt(sp + 8));
-        const args = struct { argc: usize, argv: [*][*:0]u8 }{ .argc = argc, .argv = argv };
     
-        const default_file = "/tmp/test_file.txt";
-        const filename_ptr: [*:0]const u8 = if (args.argc > 1) args.argv[1] else default_file;
+    var argc_buf: [16]u8 = undefined;
+    var argc_len: usize = 0;
+    var n_argc = argc;
+    if (n_argc == 0) {
+        argc_buf[0] = '0';
+        argc_len = 1;
+    } else {
+        while (n_argc > 0) {
+            argc_buf[argc_len] = '0' + @as(u8, @intCast(n_argc % 10));
+            argc_len += 1;
+            n_argc /= 10;
+        }
+        for (0..argc_len / 2) |j| {
+            const tmp = argc_buf[j];
+            argc_buf[j] = argc_buf[argc_len - 1 - j];
+            argc_buf[argc_len - 1 - j] = tmp;
+        }
+    }
+    rawWrite(STDOUT_FILENO, "Debug: argc=", 12);
+    rawWrite(STDOUT_FILENO, &argc_buf, argc_len);
+    rawWrite(STDOUT_FILENO, "\n", 1);
+
+    const default_file = "/tmp/test_file.txt";
+    const filename_ptr: [*:0]const u8 = if (argc > 1) @as([*][*:0]const u8, @ptrFromInt(sp + 8))[1] else default_file;
     
-        const fd = rawOpen(filename_ptr, O_RDWR, 0);
+    rawWrite(STDOUT_FILENO, "Debug: Opening: ", 16);
+    rawWrite(STDOUT_FILENO, filename_ptr, nullTerminatedLength(filename_ptr));
+    rawWrite(STDOUT_FILENO, "\n", 1);
+
+    const fd = rawOpen(filename_ptr, O_RDONLY, 0);
     
     if (fd < 0) {
-        const error_msg = "Error: Could not open file\n";
-        rawWrite(STDOUT_FILENO, error_msg, error_msg.len);
+        rawWrite(STDOUT_FILENO, "Error: Could not open file, code: ", 34);
+        const err_val = -fd;
+        var err_buf: [16]u8 = undefined;
+        var i: usize = 0;
+        if (err_val == 0) {
+            err_buf[0] = '0';
+            i = 1;
+        } else {
+            var u_err_val = @as(usize, @bitCast(err_val));
+            while (u_err_val > 0) {
+                err_buf[i] = '0' + @as(u8, @intCast(u_err_val % 10));
+                i += 1;
+                u_err_val /= 10;
+            }
+            // Reverse
+            for (0..i / 2) |j| {
+                const tmp = err_buf[j];
+                err_buf[j] = err_buf[i - 1 - j];
+                err_buf[i - 1 - j] = tmp;
+            }
+        }
+        rawWrite(STDOUT_FILENO, &err_buf, i);
+        rawWrite(STDOUT_FILENO, "\n", 1);
         return 1;
     }
 
+    rawWrite(STDOUT_FILENO, "Debug: File opened\n", 19);
     var file_size: usize = 0;
     const fd_usize: usize = @bitCast(fd);
     {
-        var stat_buf_local: [144]u8 = undefined;
-        _ = syscall2(Syscall.fstat, fd_usize, @intFromPtr(&stat_buf_local));
-        const size_ptr: *usize = @ptrFromInt(@intFromPtr(&stat_buf_local) + 48);
+        const stat_buf_ptr = @as([*]u8, @ptrCast(&global_data_buf));
+        _ = syscall2(Syscall.fstat, fd_usize, @intFromPtr(stat_buf_ptr));
+        const size_ptr: *usize = @ptrFromInt(@intFromPtr(stat_buf_ptr) + 48);
         file_size = size_ptr.*;
     }
 
     if (file_size == 0) file_size = 1024;
+    rawWrite(STDOUT_FILENO, "Debug: File size determined\n", 28);
 
     const aligned_size = alignUp(file_size, getPageSize());
 
@@ -1874,23 +1952,31 @@ export fn zig_start(sp: usize) usize {
         _ = close_result;
         return 1;
     }
+    rawWrite(STDOUT_FILENO, "Debug: File mmapped\n", 20);
 
     const close_result = rawClose(fd_usize);
     _ = close_result;
 
     const state_page_size = alignUp(@sizeOf(EditorState), getPageSize());
+    rawWrite(STDOUT_FILENO, "Debug: Allocating EditorState\n", 30);
     const state_ptr = rawMmap(null, state_page_size, PROT_READ_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, @as(usize, @bitCast(@as(isize, -1))), 0) orelse {
         rawWrite(STDOUT_FILENO, "Error: Failed to allocate EditorState\n", 37);
         return 1;
     };
+    rawWrite(STDOUT_FILENO, "Debug: EditorState allocated\n", 29);
     const editor_state: *EditorState = @ptrCast(@alignCast(state_ptr));
     @memset(state_ptr[0..@sizeOf(EditorState)], 0);
+    rawWrite(STDOUT_FILENO, "Debug: EditorState zeroed\n", 26);
     
     editor_state.viewport.rows = SCREEN_ROWS;
     editor_state.viewport.cols = SCREEN_COLS;
     editor_state.file_version = 1;
     editor_state.buffer_count = 1;
     editor_state.lsp_client.next_id = 1; // Manual init to avoid stack copy
+    editor_state.lsp_client.initialized = false;
+    editor_state.lsp_client.child_pid = null;
+    editor_state.lsp_client.stdin_fd = null;
+    editor_state.lsp_client.stdout_fd = null;
 
     editor_state.file_size = file_size;
     editor_state.aligned_size = aligned_size;
@@ -1898,9 +1984,11 @@ export fn zig_start(sp: usize) usize {
 
     var in_command: bool = false;
 
+    rawWrite(STDOUT_FILENO, "Debug: Starting first render\n", 29);
     if (mapped_ptr) |data| {
         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
     }
+    rawWrite(STDOUT_FILENO, "Debug: First render complete\n", 29);
 
     rawWrite(STDOUT_FILENO, ansi_mouse.ENABLE_MOUSE, ansi_mouse.ENABLE_MOUSE.len);
 
