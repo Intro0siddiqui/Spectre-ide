@@ -63,6 +63,54 @@ zig build -Doptimize=Debug
 
 ### Key Bindings
 
+| Key | Action |
+|-----|--------|
+| `i` | Enter insert mode |
+| `ESC` | Exit insert mode |
+| `Ctrl+Z` | Undo |
+| `:w` | Save file |
+| `:q` | Quit |
+| `/` | Search |
+| `n` / `N` | Next/previous search match |
+| `h`/`j`/`k`/`l` | Cursor movement |
+| `gg` | File start |
+| `G` | File end |
+| `w` | Next word |
+| `b` | Previous word |
+| `e` | Word end |
+| `PgUp` / `PgDn` | Page scroll |
+| `:<num>` | Go to line |
+| `:lsp <server>` | Enable LSP (clangd, zls, etc.) |
+| `:set` | Show configuration |
+
+## Architecture
+
+### Zero-Copy Memory Mapping
+
+Spectre-IDE uses `mmap()` to map files directly into virtual memory:
+- Edit files larger than physical RAM (OS paging handles it)
+- No buffer copying - data accessed directly at virtual addresses
+- Modified pages written to disk by OS (with MAP_SHARED)
+
+### Freestanding Mode
+
+Compiled for freestanding targets:
+- No standard library (LibC)
+- All syscalls via inline assembly
+- Manual memory management
+- Minimal binary footprint
+
+## Project Structure
+
+```
+src/main.zig         - Main editor implementation
+src/syscalls.zig     - Raw Linux syscalls
+src/json.zig         - Minimal JSON builder for LSP
+src/lsp_client.zig   - LSP client implementation
+src/config.zig       - Configuration system
+build.zig            - Zig build system
+ZIG.md               - Technical documentation
+```
 
 ## Requirements
 
@@ -71,7 +119,7 @@ zig build -Doptimize=Debug
 
 ## License
 
-MIT
+Apache-2.0 
 
 ---
 
