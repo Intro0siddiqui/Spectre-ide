@@ -18,10 +18,6 @@ zig-out/
 *.swp
 *.swo
 
-# Gemini AI settings
-.gemini/
-@.gemini/
-
 # OS files
 .DS_Store
 Thumbs.db
