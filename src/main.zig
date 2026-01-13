@@ -1828,7 +1828,9 @@ comptime {
         \\  xor %rbp, %rbp
         \\  mov %rsp, %rdi
         \\  and $-16, %rsp
+        \\  sub $1048576, %rsp
         \\  call zig_start
+        \\  add $1048576, %rsp
         \\  mov %rax, %rdi
         \\  mov $60, %rax
         \\  syscall
@@ -1888,9 +1890,7 @@ export fn zig_start(sp: usize) usize {
     editor_state.viewport.cols = SCREEN_COLS;
     editor_state.file_version = 1;
     editor_state.buffer_count = 1;
-    editor_state.lsp_client.init();
-    editor_state.semantic_tokens.init();
-    editor_state.diagnostics.init();
+    editor_state.lsp_client.next_id = 1; // Manual init to avoid stack copy
 
     editor_state.file_size = file_size;
     editor_state.aligned_size = aligned_size;
