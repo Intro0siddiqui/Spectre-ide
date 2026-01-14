@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/Intro/spectre-enviroment/Spectre-ide/build/cmake_install.cmake",
+		"/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/cmake_install.cmake",
+		"/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/src/cmake_install.cmake",
+		"/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/util/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

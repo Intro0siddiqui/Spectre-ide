@@ -1,0 +1,14 @@
+# Target labels
+ fltk-populate
+# Source files and their labels
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/CMakeFiles/fltk-populate
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/CMakeFiles/fltk-populate.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/CMakeFiles/fltk-populate-complete.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-build.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-configure.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-download.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-install.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-mkdir.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-patch.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-test.rule
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/fltk-populate-prefix/src/fltk-populate-stamp/fltk-populate-update.rule

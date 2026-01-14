@@ -1,0 +1,3 @@
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/CMakeFiles/fltk-populate.dir
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/CMakeFiles/edit_cache.dir
+/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-subbuild/CMakeFiles/rebuild_cache.dir

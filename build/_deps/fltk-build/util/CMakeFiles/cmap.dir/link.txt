@@ -1,0 +1,1 @@
+/usr/bin/c++  -pthread -Wl,--dependency-file=CMakeFiles/cmap.dir/link.d CMakeFiles/cmap.dir/cmap.cxx.o -o ../bin/cmap  -lm
