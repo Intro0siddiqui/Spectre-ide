@@ -8,9 +8,6 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/Intro/spectre-enviroment/Spectre-ide/src/main.cpp" "CMakeFiles/spectre.dir/src/main.cpp.o" "gcc" "CMakeFiles/spectre.dir/src/main.cpp.o.d"
-  "/home/Intro/spectre-enviroment/Spectre-ide/src/ui/EditorWidget.cpp" "CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o" "gcc" "CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o.d"
-  "" "spectre" "gcc" "CMakeFiles/spectre.dir/link.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

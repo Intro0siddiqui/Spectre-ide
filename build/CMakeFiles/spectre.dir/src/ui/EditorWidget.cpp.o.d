@@ -115,7 +115,13 @@ CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o: \
  /usr/include/c++/15.2.1/bits/uses_allocator.h \
  /usr/include/c++/15.2.1/bits/uses_allocator_args.h \
  /usr/include/c++/15.2.1/tuple \
- /home/Intro/spectre-enviroment/Spectre-ide/src/ui/../core/Editor.h \
+ /home/Intro/spectre-enviroment/Spectre-ide/src/ui/../core/spectre.h \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stdbool.h \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/fl_draw.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Graphics_Driver.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Device.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Plugin.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Preferences.H \
  /usr/include/c++/15.2.1/string /usr/include/c++/15.2.1/bits/stringfwd.h \
  /usr/include/c++/15.2.1/bits/char_traits.h \
  /usr/include/c++/15.2.1/bits/postypes.h /usr/include/c++/15.2.1/cwchar \
@@ -150,16 +156,21 @@ CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o: \
  /usr/include/bits/types/error_t.h \
  /usr/include/c++/15.2.1/bits/charconv.h \
  /usr/include/c++/15.2.1/bits/basic_string.tcc \
- /usr/include/c++/15.2.1/memory \
- /usr/include/c++/15.2.1/bits/stl_tempbuf.h \
- /usr/include/c++/15.2.1/bits/stl_raw_storage_iter.h \
- /usr/include/c++/15.2.1/bits/align.h \
- /usr/include/c++/15.2.1/bits/unique_ptr.h \
- /usr/include/c++/15.2.1/bits/shared_ptr.h \
- /usr/include/c++/15.2.1/bits/shared_ptr_base.h \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Image.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Widget.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Bitmap.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Image.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Pixmap.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_RGB_Image.H \
+ /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Rect.H \
+ /usr/include/c++/15.2.1/iostream /usr/include/c++/15.2.1/ostream \
+ /usr/include/c++/15.2.1/bits/ostream.h /usr/include/c++/15.2.1/ios \
+ /usr/include/c++/15.2.1/exception \
+ /usr/include/c++/15.2.1/bits/exception_ptr.h \
+ /usr/include/c++/15.2.1/bits/cxxabi_init_exception.h \
  /usr/include/c++/15.2.1/typeinfo \
- /usr/include/c++/15.2.1/bits/allocated_ptr.h \
- /usr/include/c++/15.2.1/ext/aligned_buffer.h \
+ /usr/include/c++/15.2.1/bits/nested_exception.h \
+ /usr/include/c++/15.2.1/bits/ios_base.h \
  /usr/include/c++/15.2.1/ext/atomicity.h \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/gthr.h \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/gthr-default.h \
@@ -170,32 +181,6 @@ CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o: \
  /usr/include/bits/types/struct___jmp_buf_tag.h \
  /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/atomic_word.h \
  /usr/include/sys/single_threaded.h \
- /usr/include/c++/15.2.1/ext/concurrence.h \
- /usr/include/c++/15.2.1/exception \
- /usr/include/c++/15.2.1/bits/exception_ptr.h \
- /usr/include/c++/15.2.1/bits/cxxabi_init_exception.h \
- /usr/include/c++/15.2.1/bits/nested_exception.h \
- /usr/include/c++/15.2.1/bits/shared_ptr_atomic.h \
- /usr/include/c++/15.2.1/bits/atomic_base.h \
- /usr/include/c++/15.2.1/bits/atomic_lockfree_defines.h \
- /usr/include/c++/15.2.1/backward/auto_ptr.h \
- /usr/include/c++/15.2.1/pstl/glue_memory_defs.h \
- /usr/include/c++/15.2.1/pstl/execution_defs.h \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/fl_draw.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Graphics_Driver.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Device.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Plugin.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Preferences.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Image.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Widget.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Bitmap.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Image.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Pixmap.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_RGB_Image.H \
- /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/../FL/Fl_Rect.H \
- /usr/include/c++/15.2.1/iostream /usr/include/c++/15.2.1/ostream \
- /usr/include/c++/15.2.1/bits/ostream.h /usr/include/c++/15.2.1/ios \
- /usr/include/c++/15.2.1/bits/ios_base.h \
  /usr/include/c++/15.2.1/bits/locale_classes.h \
  /usr/include/c++/15.2.1/bits/locale_classes.tcc \
  /usr/include/c++/15.2.1/system_error \

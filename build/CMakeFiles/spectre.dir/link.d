@@ -1,11 +1,11 @@
 spectre: \
-  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crt1.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o \
-  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o \
-  CMakeFiles/spectre.dir/src/core/Editor.cpp.o \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbegin.o \
   CMakeFiles/spectre.dir/src/main.cpp.o \
   CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o \
   _deps/fltk-build/lib/libfltk.a \
+  libspectre_core.a \
   /usr/lib/libdl.a \
   /usr/lib/libSM.so \
   /usr/lib/libICE.so \
@@ -41,7 +41,7 @@ spectre: \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libgcc_s.so.1 \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/libgcc.a \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/libgcc.a \
-  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o \
+  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtend.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o \
   /usr/lib/libuuid.so.1 \
   /usr/lib/libxcb.so.1 \
@@ -56,19 +56,19 @@ spectre: \
   /usr/lib/libbrotlidec.so.1 \
   /usr/lib/libbrotlicommon.so.1
 
-/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o:
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crt1.o:
 
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o:
 
-/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o:
-
-CMakeFiles/spectre.dir/src/core/Editor.cpp.o:
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbegin.o:
 
 CMakeFiles/spectre.dir/src/main.cpp.o:
 
 CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o:
 
 _deps/fltk-build/lib/libfltk.a:
+
+libspectre_core.a:
 
 /usr/lib/libdl.a:
 
@@ -140,7 +140,7 @@ _deps/fltk-build/lib/libfltk.a:
 
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/libgcc.a:
 
-/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o:
+/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtend.o:
 
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o:
 

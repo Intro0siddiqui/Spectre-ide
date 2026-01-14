@@ -23214,3 +23214,358 @@ events:
       CMAKE_SYSTEM_INCLUDE_PATH:
         - "/usr/include/X11"
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "build/_deps/fltk-src/CMake/resources.cmake:149 (try_compile)"
+      - "build/_deps/fltk-src/CMakeLists.txt:127 (include)"
+    directories:
+      source: "/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp"
+      binary: "/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/CMake"
+    buildResult:
+      variable: "HAVE_PTHREAD_MUTEX_RECURSIVE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_455c2/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_455c2.dir/build.make CMakeFiles/cmTC_455c2.dir/build
+        make[1]: Entering directory '/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp'
+        Building C object CMakeFiles/cmTC_455c2.dir/pthread_mutex_recursive.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_455c2.dir/pthread_mutex_recursive.c.o -c /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/CMake/pthread_mutex_recursive.c
+        Linking C executable cmTC_455c2
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_455c2.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_455c2.dir/pthread_mutex_recursive.c.o -o cmTC_455c2
+        make[1]: Leaving directory '/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp'
+        
+      exitCode: 0
+  -
+    kind: "find-v1"
+    backtrace:
+      - "build/_deps/fltk-src/CMake/options.cmake:710 (find_file)"
+      - "build/_deps/fltk-src/CMakeLists.txt:132 (include)"
+    mode: "file"
+    variable: "HAVE_GL_GLU_H"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "GL/glu.h"
+    candidate_directories:
+      - "/home/Intro/.bun/bin/"
+      - "/home/Intro/bin/"
+      - "/home/Intro/.local/bin/"
+      - "/usr/bin/"
+      - "/home/Intro/jdk/bin/"
+      - "/home/Intro/.cargo/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/usr/lib/rustup/bin/"
+      - "/usr/local/include/"
+      - "/usr/local/"
+      - "/usr/include/"
+      - "/usr/"
+      - "/include/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/"
+      - "/opt/include/"
+      - "/opt/"
+      - "/usr/include/X11/"
+      - "/usr/include/"
+    searched_directories:
+      - "/home/Intro/.bun/bin/GL/glu.h"
+      - "/home/Intro/bin/GL/glu.h"
+      - "/home/Intro/.local/bin/GL/glu.h"
+      - "/usr/bin/GL/glu.h"
+      - "/home/Intro/jdk/bin/GL/glu.h"
+      - "/home/Intro/.cargo/bin/GL/glu.h"
+      - "/usr/local/sbin/GL/glu.h"
+      - "/usr/local/bin/GL/glu.h"
+      - "/usr/lib/jvm/default/bin/GL/glu.h"
+      - "/usr/bin/site_perl/GL/glu.h"
+      - "/usr/bin/vendor_perl/GL/glu.h"
+      - "/usr/bin/core_perl/GL/glu.h"
+      - "/usr/lib/rustup/bin/GL/glu.h"
+      - "/usr/local/include/GL/glu.h"
+      - "/usr/local/GL/glu.h"
+      - "/usr/include/GL/glu.h"
+      - "/usr/GL/glu.h"
+      - "/include/GL/glu.h"
+      - "/usr/X11R6/include/GL/glu.h"
+      - "/usr/X11R6/GL/glu.h"
+      - "/usr/pkg/include/GL/glu.h"
+      - "/usr/pkg/GL/glu.h"
+      - "/opt/include/GL/glu.h"
+      - "/opt/GL/glu.h"
+      - "/usr/include/X11/GL/glu.h"
+      - "/usr/include/GL/glu.h"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/Intro/.bun/bin"
+        - "/home/Intro/.bun/bin"
+        - "/home/Intro/bin"
+        - "/home/Intro/.local/bin"
+        - "/usr/bin"
+        - "/home/Intro/jdk/bin"
+        - "/home/Intro/jdk/bin"
+        - "/home/Intro/.cargo/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/usr/lib/rustup/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "CMakeLists.txt:21 (find_program)"
+    mode: "program"
+    variable: "ZIG_EXE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "zig"
+    candidate_directories:
+      - "/home/Intro/.bun/bin/"
+      - "/home/Intro/bin/"
+      - "/home/Intro/.local/bin/"
+      - "/usr/bin/"
+      - "/home/Intro/jdk/bin/"
+      - "/home/Intro/.cargo/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/usr/lib/rustup/bin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/home/Intro/.bun/bin/zig"
+      - "/home/Intro/bin/zig"
+      - "/home/Intro/.local/bin/zig"
+    found: "/usr/bin/zig"
+    search_context:
+      ENV{PATH}:
+        - "/home/Intro/.bun/bin"
+        - "/home/Intro/.bun/bin"
+        - "/home/Intro/bin"
+        - "/home/Intro/.local/bin"
+        - "/usr/bin"
+        - "/home/Intro/jdk/bin"
+        - "/home/Intro/jdk/bin"
+        - "/home/Intro/.cargo/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/usr/lib/rustup/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "build/_deps/fltk-src/CMake/resources.cmake:149 (try_compile)"
+      - "build/_deps/fltk-src/CMakeLists.txt:127 (include)"
+    directories:
+      source: "/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp"
+      binary: "/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/CMake"
+    buildResult:
+      variable: "HAVE_PTHREAD_MUTEX_RECURSIVE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_480d6/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_480d6.dir/build.make CMakeFiles/cmTC_480d6.dir/build
+        make[1]: Entering directory '/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp'
+        Building C object CMakeFiles/cmTC_480d6.dir/pthread_mutex_recursive.c.o
+        /usr/bin/cc    -o CMakeFiles/cmTC_480d6.dir/pthread_mutex_recursive.c.o -c /home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/CMake/pthread_mutex_recursive.c
+        Linking C executable cmTC_480d6
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_480d6.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_480d6.dir/pthread_mutex_recursive.c.o -o cmTC_480d6
+        make[1]: Leaving directory '/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/CMakeFiles/CMakeTmp'
+        
+      exitCode: 0
+  -
+    kind: "find-v1"
+    backtrace:
+      - "build/_deps/fltk-src/CMake/options.cmake:710 (find_file)"
+      - "build/_deps/fltk-src/CMakeLists.txt:132 (include)"
+    mode: "file"
+    variable: "HAVE_GL_GLU_H"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "GL/glu.h"
+    candidate_directories:
+      - "/home/Intro/.bun/bin/"
+      - "/home/Intro/bin/"
+      - "/home/Intro/.local/bin/"
+      - "/usr/bin/"
+      - "/home/Intro/jdk/bin/"
+      - "/home/Intro/.cargo/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/bin/"
+      - "/usr/lib/jvm/default/bin/"
+      - "/usr/bin/site_perl/"
+      - "/usr/bin/vendor_perl/"
+      - "/usr/bin/core_perl/"
+      - "/usr/lib/rustup/bin/"
+      - "/usr/local/include/"
+      - "/usr/local/"
+      - "/usr/include/"
+      - "/usr/"
+      - "/include/"
+      - "/usr/X11R6/include/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/include/"
+      - "/usr/pkg/"
+      - "/opt/include/"
+      - "/opt/"
+      - "/usr/include/X11/"
+      - "/usr/include/"
+    searched_directories:
+      - "/home/Intro/.bun/bin/GL/glu.h"
+      - "/home/Intro/bin/GL/glu.h"
+      - "/home/Intro/.local/bin/GL/glu.h"
+      - "/usr/bin/GL/glu.h"
+      - "/home/Intro/jdk/bin/GL/glu.h"
+      - "/home/Intro/.cargo/bin/GL/glu.h"
+      - "/usr/local/sbin/GL/glu.h"
+      - "/usr/local/bin/GL/glu.h"
+      - "/usr/lib/jvm/default/bin/GL/glu.h"
+      - "/usr/bin/site_perl/GL/glu.h"
+      - "/usr/bin/vendor_perl/GL/glu.h"
+      - "/usr/bin/core_perl/GL/glu.h"
+      - "/usr/lib/rustup/bin/GL/glu.h"
+      - "/usr/local/include/GL/glu.h"
+      - "/usr/local/GL/glu.h"
+      - "/usr/include/GL/glu.h"
+      - "/usr/GL/glu.h"
+      - "/include/GL/glu.h"
+      - "/usr/X11R6/include/GL/glu.h"
+      - "/usr/X11R6/GL/glu.h"
+      - "/usr/pkg/include/GL/glu.h"
+      - "/usr/pkg/GL/glu.h"
+      - "/opt/include/GL/glu.h"
+      - "/opt/GL/glu.h"
+      - "/usr/include/X11/GL/glu.h"
+      - "/usr/include/GL/glu.h"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/Intro/.bun/bin"
+        - "/home/Intro/.bun/bin"
+        - "/home/Intro/bin"
+        - "/home/Intro/.local/bin"
+        - "/usr/bin"
+        - "/home/Intro/jdk/bin"
+        - "/home/Intro/jdk/bin"
+        - "/home/Intro/.cargo/bin"
+        - "/usr/local/sbin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/usr/lib/jvm/default/bin"
+        - "/usr/bin/site_perl"
+        - "/usr/bin/vendor_perl"
+        - "/usr/bin/core_perl"
+        - "/usr/lib/rustup/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_INCLUDE_PATH:
+        - "/usr/include/X11"
+...

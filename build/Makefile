@@ -162,6 +162,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named zig_build
+
+# Build rule for target.
+zig_build: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 zig_build
+.PHONY : zig_build
+
+# fast build rule for target.
+zig_build/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/zig_build.dir/build.make CMakeFiles/zig_build.dir/build
+.PHONY : zig_build/fast
+
+#=============================================================================
 # Target rules for targets named spectre
 
 # Build rule for target.
@@ -239,30 +252,6 @@ cmap/fast:
 	$(MAKE) $(MAKESILENT) -f _deps/fltk-build/util/CMakeFiles/cmap.dir/build.make _deps/fltk-build/util/CMakeFiles/cmap.dir/build
 .PHONY : cmap/fast
 
-src/core/Editor.o: src/core/Editor.cpp.o
-.PHONY : src/core/Editor.o
-
-# target to build an object file
-src/core/Editor.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/spectre.dir/build.make CMakeFiles/spectre.dir/src/core/Editor.cpp.o
-.PHONY : src/core/Editor.cpp.o
-
-src/core/Editor.i: src/core/Editor.cpp.i
-.PHONY : src/core/Editor.i
-
-# target to preprocess a source file
-src/core/Editor.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/spectre.dir/build.make CMakeFiles/spectre.dir/src/core/Editor.cpp.i
-.PHONY : src/core/Editor.cpp.i
-
-src/core/Editor.s: src/core/Editor.cpp.s
-.PHONY : src/core/Editor.s
-
-# target to generate assembly for a file
-src/core/Editor.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/spectre.dir/build.make CMakeFiles/spectre.dir/src/core/Editor.cpp.s
-.PHONY : src/core/Editor.cpp.s
-
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -324,14 +313,12 @@ help:
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
 	@echo "... uninstall"
+	@echo "... zig_build"
 	@echo "... cmap"
 	@echo "... fltk"
 	@echo "... fltk_gl"
 	@echo "... fltk_images"
 	@echo "... spectre"
-	@echo "... src/core/Editor.o"
-	@echo "... src/core/Editor.i"
-	@echo "... src/core/Editor.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

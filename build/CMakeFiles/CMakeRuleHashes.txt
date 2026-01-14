@@ -1,2 +1,4 @@
 # Hashes of file build rules.
+150ea85219fd33384a761f04850d2a2b CMakeFiles/zig_build
 b1056677c7e31328dfe592daf2089214 _deps/fltk-build/CMakeFiles/uninstall
+019161afda13a44310ccbc5beedf066e libspectre_core.a

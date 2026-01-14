@@ -1,3 +1,4 @@
+/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles/zig_build.dir
 /home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles/spectre.dir
 /home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles/edit_cache.dir
 /home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles/rebuild_cache.dir

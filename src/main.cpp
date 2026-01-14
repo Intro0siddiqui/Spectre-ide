@@ -1,24 +1,18 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
-#include "core/Editor.h"
+#include "core/spectre.h"
 #include "ui/EditorWidget.h"
-#include <memory>
 #include <iostream>
 
 int main(int argc, char **argv) {
-    // Initialize Core Editor
-    auto editor = std::make_unique<core::Editor>();
+    // Initialize Zig Core
+    spectre_init();
     
-    // Check args for file to open
-    if (argc > 1) {
-        editor->loadFile(argv[1]);
-    }
-
     // Initialize Window
-    Fl_Double_Window *window = new Fl_Double_Window(1200, 800, "Spectre-IDE C++");
+    Fl_Double_Window *window = new Fl_Double_Window(1200, 800, "Spectre-IDE (Hybrid)");
     
-    // Create Editor Widget
-    ui::EditorWidget *editorWidget = new ui::EditorWidget(0, 0, 1200, 800, editor.get());
+    // Create Editor Widget (No args needed now as it uses global API)
+    ui::EditorWidget *editorWidget = new ui::EditorWidget(0, 0, 1200, 800);
     
     // Setup handling
     window->resizable(editorWidget);

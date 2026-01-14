@@ -962,6 +962,9 @@ X11_xkbfile_INCLUDE_PATH:PATH=/usr/include
 //Path to a library.
 X11_xkbfile_LIB:FILEPATH=/usr/lib/libxkbfile.so
 
+//Path to a program.
+ZIG_EXE:FILEPATH=/usr/bin/zig
+
 //Path to a file.
 ZLIB_INCLUDE_DIR:PATH=/usr/include
 

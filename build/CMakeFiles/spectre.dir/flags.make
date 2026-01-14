@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/Intro/spectre-enviroment/Spectre-ide/src -I/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-build/src/.. -I/home/Intro/spectre-enviroment/Spectre-ide/build/_deps/fltk-src/src/..
 
-CXX_FLAGS = -std=c++17
+CXX_FLAGS = -std=c++17 -fno-pie
 

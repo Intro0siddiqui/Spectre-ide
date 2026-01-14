@@ -120,6 +120,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
+  "CMakeFiles/zig_build.dir/DependInfo.cmake"
   "CMakeFiles/spectre.dir/DependInfo.cmake"
   "_deps/fltk-build/CMakeFiles/uninstall.dir/DependInfo.cmake"
   "_deps/fltk-build/src/CMakeFiles/fltk.dir/DependInfo.cmake"

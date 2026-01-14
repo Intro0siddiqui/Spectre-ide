@@ -1,7 +1,5 @@
 file(REMOVE_RECURSE
   "CMakeFiles/spectre.dir/link.d"
-  "CMakeFiles/spectre.dir/src/core/Editor.cpp.o"
-  "CMakeFiles/spectre.dir/src/core/Editor.cpp.o.d"
   "CMakeFiles/spectre.dir/src/main.cpp.o"
   "CMakeFiles/spectre.dir/src/main.cpp.o.d"
   "CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o"

@@ -72,24 +72,10 @@ include CMakeFiles/spectre.dir/flags.make
 CMakeFiles/spectre.dir/codegen:
 .PHONY : CMakeFiles/spectre.dir/codegen
 
-CMakeFiles/spectre.dir/src/core/Editor.cpp.o: CMakeFiles/spectre.dir/flags.make
-CMakeFiles/spectre.dir/src/core/Editor.cpp.o: /home/Intro/spectre-enviroment/Spectre-ide/src/core/Editor.cpp
-CMakeFiles/spectre.dir/src/core/Editor.cpp.o: CMakeFiles/spectre.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/spectre.dir/src/core/Editor.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/spectre.dir/src/core/Editor.cpp.o -MF CMakeFiles/spectre.dir/src/core/Editor.cpp.o.d -o CMakeFiles/spectre.dir/src/core/Editor.cpp.o -c /home/Intro/spectre-enviroment/Spectre-ide/src/core/Editor.cpp
-
-CMakeFiles/spectre.dir/src/core/Editor.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spectre.dir/src/core/Editor.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/Intro/spectre-enviroment/Spectre-ide/src/core/Editor.cpp > CMakeFiles/spectre.dir/src/core/Editor.cpp.i
-
-CMakeFiles/spectre.dir/src/core/Editor.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spectre.dir/src/core/Editor.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/Intro/spectre-enviroment/Spectre-ide/src/core/Editor.cpp -o CMakeFiles/spectre.dir/src/core/Editor.cpp.s
-
 CMakeFiles/spectre.dir/src/main.cpp.o: CMakeFiles/spectre.dir/flags.make
 CMakeFiles/spectre.dir/src/main.cpp.o: /home/Intro/spectre-enviroment/Spectre-ide/src/main.cpp
 CMakeFiles/spectre.dir/src/main.cpp.o: CMakeFiles/spectre.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/spectre.dir/src/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/spectre.dir/src/main.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/spectre.dir/src/main.cpp.o -MF CMakeFiles/spectre.dir/src/main.cpp.o.d -o CMakeFiles/spectre.dir/src/main.cpp.o -c /home/Intro/spectre-enviroment/Spectre-ide/src/main.cpp
 
 CMakeFiles/spectre.dir/src/main.cpp.i: cmake_force
@@ -103,7 +89,7 @@ CMakeFiles/spectre.dir/src/main.cpp.s: cmake_force
 CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o: CMakeFiles/spectre.dir/flags.make
 CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o: /home/Intro/spectre-enviroment/Spectre-ide/src/ui/EditorWidget.cpp
 CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o: CMakeFiles/spectre.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o -MF CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o.d -o CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o -c /home/Intro/spectre-enviroment/Spectre-ide/src/ui/EditorWidget.cpp
 
 CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.i: cmake_force
@@ -116,19 +102,18 @@ CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.s: cmake_force
 
 # Object files for target spectre
 spectre_OBJECTS = \
-"CMakeFiles/spectre.dir/src/core/Editor.cpp.o" \
 "CMakeFiles/spectre.dir/src/main.cpp.o" \
 "CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o"
 
 # External object files for target spectre
 spectre_EXTERNAL_OBJECTS =
 
-spectre: CMakeFiles/spectre.dir/src/core/Editor.cpp.o
 spectre: CMakeFiles/spectre.dir/src/main.cpp.o
 spectre: CMakeFiles/spectre.dir/src/ui/EditorWidget.cpp.o
 spectre: CMakeFiles/spectre.dir/build.make
 spectre: CMakeFiles/spectre.dir/compiler_depend.ts
 spectre: _deps/fltk-build/lib/libfltk.a
+spectre: libspectre_core.a
 spectre: /usr/lib/libdl.a
 spectre: /usr/lib/libSM.so
 spectre: /usr/lib/libICE.so
@@ -141,7 +126,7 @@ spectre: /usr/lib/libXrender.so
 spectre: /usr/lib/libXft.so
 spectre: /usr/lib/libfontconfig.so
 spectre: CMakeFiles/spectre.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable spectre"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/Intro/spectre-enviroment/Spectre-ide/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable spectre"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/spectre.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
