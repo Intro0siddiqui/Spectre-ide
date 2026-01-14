@@ -1,4 +1,4 @@
-const Syscall = enum(usize) { write = 1, exit = 60, read = 0, open = 2, close = 3, fstat = 5, mmap = 9, munmap = 11, msync = 26, mremap = 25, ftruncate = 77 };
+const Syscall = enum(usize) { write = 1, exit = 60, read = 0, open = 2, close = 3, fstat = 5, mmap = 9, munmap = 11, msync = 26, mremap = 25, ftruncate = 77, rt_sigaction = 13, fcntl = 72, wait4 = 61, fork = 57, execve = 59, pipe = 22, dup2 = 33, rt_sigreturn = 15 };
 const STDIN_FILENO: usize = 0;
 const STDOUT_FILENO: usize = 1;
 
@@ -170,7 +170,7 @@ inline fn syscall1(number: Syscall, arg1: usize) usize {
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
-    );
+        : .{ .rcx = true, .r11 = true });
 }
 
 inline fn syscall3(number: Syscall, arg1: usize, arg2: usize, arg3: usize) usize {
@@ -180,7 +180,7 @@ inline fn syscall3(number: Syscall, arg1: usize, arg2: usize, arg3: usize) usize
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
-    );
+        : .{ .rcx = true, .r11 = true });
 }
 
 inline fn syscall6(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize, arg6: usize) usize {
@@ -193,7 +193,7 @@ inline fn syscall6(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4:
           [arg4] "{r10}" (arg4),
           [arg5] "{r8}" (arg5),
           [arg6] "{r9}" (arg6),
-    );
+        : .{ .rcx = true, .r11 = true });
 }
 
 inline fn syscall2(number: Syscall, arg1: usize, arg2: usize) usize {
@@ -202,7 +202,7 @@ inline fn syscall2(number: Syscall, arg1: usize, arg2: usize) usize {
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
-    );
+        : .{ .rcx = true, .r11 = true });
 }
 
 inline fn syscall5(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {
@@ -214,14 +214,14 @@ inline fn syscall5(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4:
           [arg3] "{rdx}" (arg3),
           [arg4] "{r10}" (arg4),
           [arg5] "{r8}" (arg5),
-    );
+        : .{ .rcx = true, .r11 = true });
 }
 
 inline fn syscall0(number: Syscall) usize {
     return asm volatile ("syscall"
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
-    );
+        : .{ .rcx = true, .r11 = true });
 }
 
 inline fn syscall4(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
@@ -232,7 +232,49 @@ inline fn syscall4(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4:
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
           [arg4] "{r10}" (arg4),
-    );
+        : .{ .rcx = true, .r11 = true });
+}
+
+const SIGINT = 2;
+const SIGQUIT = 3;
+const SIGHUP = 1;
+const SIGTERM = 15;
+const SIGSEGV = 11;
+const SIGILL = 4;
+const SIGABRT = 6;
+const SIGFPE = 8;
+const SIGBUS = 7;
+const SA_RESTORER = 0x04000000;
+
+const Sigaction = extern struct {
+    handler: ?*const fn (i32) callconv(.c) void,
+    flags: usize,
+    restorer: ?*const fn () callconv(.c) void,
+    mask: u64,
+};
+
+fn rawSigaction(sig: i32, act: ?*const Sigaction, oact: ?*Sigaction) usize {
+    return syscall4(Syscall.rt_sigaction, @as(usize, @bitCast(@as(isize, sig))), if (act) |a| @intFromPtr(a) else 0, if (oact) |o| @intFromPtr(o) else 0, 8);
+}
+
+fn restore_rt() callconv(.c) void {
+    _ = syscall0(Syscall.rt_sigreturn);
+}
+
+var global_terminal_cleaned = false;
+
+fn cleanupTerminal() void {
+    if (global_terminal_cleaned) return;
+    // Reset all attributes, disable mouse modes, show cursor
+    rawWrite(STDOUT_FILENO, "\x1b[0m\x1b[?1000l\x1b[?1006l\x1b[?25h", 25);
+    global_terminal_cleaned = true;
+}
+
+fn sigintHandler(sig: i32) callconv(.c) void {
+    _ = sig;
+    cleanupTerminal();
+    _ = syscall1(Syscall.exit, 130);
+    unreachable;
 }
 
 fn rawWrite(fd: usize, ptr: [*]const u8, len: usize) void {
@@ -259,7 +301,7 @@ fn rawClose(fd: usize) isize {
 fn rawMmap(addr: ?[*]u8, length: usize, prot: usize, flags: usize, fd: usize, offset: usize) ?[*]u8 {
     const addr_int = if (addr) |a| @intFromPtr(a) else 0;
     const result = syscall6(Syscall.mmap, addr_int, length, prot, flags, fd, offset);
-    if (result == @as(usize, @bitCast(MAP_FAILED))) return null;
+    if (result >= @as(usize, @bitCast(@as(isize, -4095)))) return null;
     return @ptrFromInt(result);
 }
 
@@ -298,7 +340,7 @@ fn rawDup2(oldfd: usize, newfd: usize) isize {
 }
 
 fn rawWaitpid(pid: usize, wstatus: [*]usize, options: usize) isize {
-    return @bitCast(syscall4(Syscall.waitpid, pid, @intFromPtr(wstatus), options, 0));
+    return @bitCast(syscall4(Syscall.wait4, pid, @intFromPtr(wstatus), options, 0));
 }
 
 fn getPageSize() usize {
@@ -322,14 +364,25 @@ const Viewport = struct {
 const ScreenBuffer = struct {
     previous: [SCREEN_ROWS][SCREEN_COLS]u8 = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS,
     current: [SCREEN_ROWS][SCREEN_COLS]u8 = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS,
+    previous_color: [SCREEN_ROWS][SCREEN_COLS]u8 = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS,
+    current_color: [SCREEN_ROWS][SCREEN_COLS]u8 = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS,
 
     fn copyCurrentToPrevious(self: *ScreenBuffer) void {
         @memcpy(@as(*[SCREEN_ROWS * SCREEN_COLS]u8, @ptrCast(&self.previous)), @as(*[SCREEN_ROWS * SCREEN_COLS]u8, @ptrCast(&self.current)));
+        @memcpy(@as(*[SCREEN_ROWS * SCREEN_COLS]u8, @ptrCast(&self.previous_color)), @as(*[SCREEN_ROWS * SCREEN_COLS]u8, @ptrCast(&self.current_color)));
     }
 
     fn setChar(self: *ScreenBuffer, row: usize, col: usize, char: u8) void {
         if (row < SCREEN_ROWS and col < SCREEN_COLS) {
             self.current[row][col] = char;
+            self.current_color[row][col] = 0; // Default color
+        }
+    }
+
+    fn setCharColor(self: *ScreenBuffer, row: usize, col: usize, char: u8, color: u8) void {
+        if (row < SCREEN_ROWS and col < SCREEN_COLS) {
+            self.current[row][col] = char;
+            self.current_color[row][col] = color;
         }
     }
 
@@ -343,79 +396,152 @@ const ScreenBuffer = struct {
     fn renderDiff(self: *ScreenBuffer) void {
         // Only clear screen on first render
         if (self.previous[0][0] == 0) {
-            const clear = "\x1b[2J\x1b[H";
+            const clear = "\x1b[2J\x1b[H\x1b[48;5;236m";
             rawWrite(STDOUT_FILENO, clear, clear.len);
         }
+
+        var active_color: u8 = 0;
+        var out_buf: [16384]u8 = undefined;
+        var out_len: usize = 0;
 
         for (0..SCREEN_ROWS) |r| {
             var line_changed = false;
             var first_change_col: usize = SCREEN_COLS;
-            var last_change_col: usize = 0;
 
-            // Check if line has any changes
             for (0..SCREEN_COLS) |c| {
-                const current_ch = self.current[r][c];
-                const prev_ch = self.previous[r][c];
-                if (current_ch != prev_ch) {
+                if (self.current[r][c] != self.previous[r][c] or self.current_color[r][c] != self.previous_color[r][c]) {
                     line_changed = true;
                     if (c < first_change_col) first_change_col = c;
-                    if (c > last_change_col) last_change_col = c;
                 }
             }
 
             if (line_changed) {
-                // Position cursor at start of changed region
                 const row_num = r + 1;
                 const col_num = first_change_col + 1;
-                var pos_buf: [32]u8 = undefined;
-                var pos_len: usize = 0;
 
-                pos_buf[pos_len] = 0x1b;
-                pos_len += 1;
-                pos_buf[pos_len] = '[';
-                pos_len += 1;
-
-                if (row_num >= 10) {
-                    pos_buf[pos_len] = '0' + @as(u8, @intCast(row_num / 10));
-                    pos_len += 1;
+                // Move cursor
+                if (out_len + 32 > out_buf.len) {
+                    rawWrite(STDOUT_FILENO, &out_buf, out_len);
+                    out_len = 0;
                 }
-                pos_buf[pos_len] = '0' + @as(u8, @intCast(row_num % 10));
-                pos_len += 1;
+                out_buf[out_len] = 0x1b;
+                out_len += 1;
+                out_buf[out_len] = '[';
+                out_len += 1;
+                out_len += uintToString(row_num, out_buf[out_len..]);
+                out_buf[out_len] = ';';
+                out_len += 1;
+                out_len += uintToString(col_num, out_buf[out_len..]);
+                out_buf[out_len] = 'H';
+                out_len += 1;
 
-                pos_buf[pos_len] = ';';
-                pos_len += 1;
-
-                if (col_num >= 10) {
-                    pos_buf[pos_len] = '0' + @as(u8, @intCast(col_num / 10));
-                    pos_len += 1;
-                }
-                pos_buf[pos_len] = '0' + @as(u8, @intCast(col_num % 10));
-                pos_len += 1;
-
-                pos_buf[pos_len] = 'H';
-                pos_len += 1;
-
-                rawWrite(STDOUT_FILENO, &pos_buf, pos_len);
-
-                // Write the entire line from first change to end
-                var line_buf: [SCREEN_COLS]u8 = undefined;
-                var line_len: usize = 0;
                 for (first_change_col..SCREEN_COLS) |c| {
-                    line_buf[line_len] = if (self.current[r][c] != 0) self.current[r][c] else ' ';
-                    line_len += 1;
+                    const ch = if (self.current[r][c] != 0) self.current[r][c] else ' ';
+                    const color = self.current_color[r][c];
+
+                    if (color != active_color) {
+                        if (out_len + 32 > out_buf.len) {
+                            rawWrite(STDOUT_FILENO, &out_buf, out_len);
+                            out_len = 0;
+                        }
+                        out_buf[out_len] = 0x1b;
+                        out_len += 1;
+                        out_buf[out_len] = '[';
+                        out_len += 1;
+                        if (color == 0 or color == 255) {
+                            // Reset foreground but keep Dracula background
+                            out_buf[out_len] = '3';
+                            out_len += 1;
+                            out_buf[out_len] = '9';
+                            out_len += 1;
+                            out_buf[out_len] = ';';
+                            out_len += 1;
+                            out_buf[out_len] = '4';
+                            out_len += 1;
+                            out_buf[out_len] = '8';
+                            out_len += 1;
+                            out_buf[out_len] = ';';
+                            out_len += 1;
+                            out_buf[out_len] = '5';
+                            out_len += 1;
+                            out_buf[out_len] = ';';
+                            out_len += 1;
+                            out_buf[out_len] = '2';
+                            out_len += 1;
+                            out_buf[out_len] = '3';
+                            out_len += 1;
+                            out_buf[out_len] = '6';
+                            out_len += 1;
+                        } else {
+                            // 256-color mode: 38;5;N for foreground
+                            out_buf[out_len] = '3';
+                            out_len += 1;
+                            out_buf[out_len] = '8';
+                            out_len += 1;
+                            out_buf[out_len] = ';';
+                            out_len += 1;
+                            out_buf[out_len] = '5';
+                            out_len += 1;
+                            out_buf[out_len] = ';';
+                            out_len += 1;
+                            out_len += uintToString(color, out_buf[out_len..]);
+                        }
+                        out_buf[out_len] = 'm';
+                        out_len += 1;
+                        active_color = color;
+                    }
+                    if (out_len + 1 > out_buf.len) {
+                        rawWrite(STDOUT_FILENO, &out_buf, out_len);
+                        out_len = 0;
+                    }
+                    out_buf[out_len] = ch;
+                    out_len += 1;
                 }
-                rawWrite(STDOUT_FILENO, &line_buf, line_len);
             }
         }
 
-        // Position cursor at bottom right after rendering
-        const cursor_home = "\x1b[24;80H";
-        rawWrite(STDOUT_FILENO, cursor_home, cursor_home.len);
+        // Reset color and position cursor at bottom right
+        const reset_and_home = "\x1b[0m\x1b[24;80H";
+        if (out_len + 32 > out_buf.len) {
+            rawWrite(STDOUT_FILENO, &out_buf, out_len);
+            out_len = 0;
+        }
+        @memcpy(out_buf[out_len .. out_len + reset_and_home.len], reset_and_home);
+        out_len += reset_and_home.len;
+
+        if (out_len > 0) rawWrite(STDOUT_FILENO, &out_buf, out_len);
 
         // Copy current to previous after rendering
         self.copyCurrentToPrevious();
     }
 };
+
+fn uintToString(val: usize, buf: []u8) usize {
+    if (val == 0) {
+        if (buf.len > 0) {
+            buf[0] = '0';
+            return 1;
+        }
+        return 0;
+    }
+    var temp: [20]u8 = undefined;
+    var i: usize = 0;
+    var v = val;
+    while (v > 0) {
+        temp[i] = '0' + @as(u8, @intCast(v % 10));
+        v /= 10;
+        i += 1;
+    }
+    var len: usize = 0;
+    while (i > 0) {
+        if (len < buf.len) {
+            buf[len] = temp[i - 1];
+            len += 1;
+        }
+        i -= 1;
+    }
+    return len;
+}
 
 const Operation = struct {
     op_type: enum { insert, delete },
@@ -832,10 +958,8 @@ fn getSemanticTokenColor(token_type: u32) u8 {
 var global_data_buf: [4096]u32 = undefined;
 
 fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buffer: *ScreenBuffer, editor_state: *EditorState) void {
-    rawWrite(STDOUT_FILENO, "Debug: renderViewport entered\n", 30);
-    // Clear the current buffer
-    screen_buffer.current = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS;
-    rawWrite(STDOUT_FILENO, "Debug: screen_buffer cleared\n", 29);
+    // Clear the current buffer - REMOVED redundant initialization that caused stack pressure
+    // screen_buffer.current = [_][SCREEN_COLS]u8{[_]u8{0} ** SCREEN_COLS} ** SCREEN_ROWS;
 
     // Enhanced status bar (row 0)
     var status_col: usize = 0;
@@ -847,7 +971,6 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         status_col += 1;
         if (status_col >= SCREEN_COLS) break;
     }
-    rawWrite(STDOUT_FILENO, "Debug: status bar mode done\n", 28);
 
     // Line and column (1-based)
     const line_num = editor_state.cursor_row + 1;
@@ -855,7 +978,6 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
     var num_buf: [16]u8 = undefined;
     var num_len: usize = 0;
 
-    rawWrite(STDOUT_FILENO, "Debug: line num start\n", 22);
     // Convert line number to string
     var n = line_num;
     if (n == 0) {
@@ -880,17 +1002,14 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
             }
         }
     }
-    rawWrite(STDOUT_FILENO, "Debug: line num end\n", 20);
 
     // Add colon
     if (num_len < 16) {
         num_buf[num_len] = ',';
         num_len += 1;
     }
-    rawWrite(STDOUT_FILENO, "Debug: colon added\n", 19);
 
     // Convert column number to string
-    rawWrite(STDOUT_FILENO, "Debug: col num start\n", 21);
     n = col_num;
     if (n == 0) {
         if (num_len < 16) {
@@ -914,7 +1033,6 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
             }
         }
     }
-    rawWrite(STDOUT_FILENO, "Debug: col num end\n", 19);
 
     for (num_buf[0..num_len]) |c| {
         screen_buffer.setChar(0, status_col, c);
@@ -922,7 +1040,6 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         if (status_col >= SCREEN_COLS) break;
     }
 
-    // File size
     const size_str = " | ";
     for (size_str) |c| {
         screen_buffer.setChar(0, status_col, c);
@@ -936,9 +1053,9 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         screen_buffer.setChar(0, status_col, '0');
         status_col += 1;
     } else {
-        var digits: [16]u8 = undefined;
+        var digits: [32]u8 = undefined;
         var digit_count: usize = 0;
-        while (n > 0) : (n /= 10) {
+        while (n > 0 and digit_count < 32) : (n /= 10) {
             digits[digit_count] = '0' + @as(u8, @intCast(n % 10));
             digit_count += 1;
         }
@@ -987,7 +1104,9 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         if (line_len > 0 and line_start + line_len <= size) {
             var i: usize = 0;
             while (i < line_len and col < SCREEN_COLS) {
-                screen_buffer.setChar(row, col, data[line_start + i]);
+                const char = data[line_start + i];
+                // No built-in highlighting - LSP provides colors when connected
+                screen_buffer.setCharColor(row, col, char, 0);
                 col += 1;
                 i += 1;
             }
@@ -1002,7 +1121,7 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
     // Process Terminal Relay
     if (editor_state.terminal_active) {
         // Read new output
-        const remaining = 4096 - editor_state.terminal_len;
+        const remaining = 1024 - editor_state.terminal_len;
         if (remaining > 0) {
             const bytes_read = editor_state.terminal_relay.readOutput(editor_state.terminal_buffer[editor_state.terminal_len..]);
             if (bytes_read > 0) {
@@ -1089,35 +1208,45 @@ fn renderViewport(data: [*]const u8, size: usize, line_offset: usize, screen_buf
         if (col >= SCREEN_COLS) break;
     }
 
-    var footer_buf: [80]u8 = undefined;
+    var footer_buf: [256]u8 = undefined;
     var footer_len: usize = 0;
     const base_footer = " | /search n/N next/prev";
     for (base_footer) |c| {
-        footer_buf[footer_len] = c;
-        footer_len += 1;
+        if (footer_len < footer_buf.len) {
+            footer_buf[footer_len] = c;
+            footer_len += 1;
+        }
     }
     if (editor_state.insert_mode) {
         const insert_text = " (INSERT)";
         for (insert_text) |c| {
-            footer_buf[footer_len] = c;
-            footer_len += 1;
+            if (footer_len < footer_buf.len) {
+                footer_buf[footer_len] = c;
+                footer_len += 1;
+            }
         }
         const edit_help = ", Enter split";
         for (edit_help) |c| {
-            footer_buf[footer_len] = c;
-            footer_len += 1;
+            if (footer_len < footer_buf.len) {
+                footer_buf[footer_len] = c;
+                footer_len += 1;
+            }
         }
     } else {
         const normal_help = ", dd del, J join, PgUp/Dn";
         for (normal_help) |c| {
-            footer_buf[footer_len] = c;
-            footer_len += 1;
+            if (footer_len < footer_buf.len) {
+                footer_buf[footer_len] = c;
+                footer_len += 1;
+            }
         }
     }
     const rest_footer = ", w/b/e words, gg/G, :<num> goto, h/j/k/l move, BS/Del, Ctrl+Z undo, :w save, :lsp <server>, q quit";
     for (rest_footer) |c| {
-        footer_buf[footer_len] = c;
-        footer_len += 1;
+        if (footer_len < footer_buf.len) {
+            footer_buf[footer_len] = c;
+            footer_len += 1;
+        }
     }
     for (footer_buf[0..footer_len]) |c| {
         screen_buffer.setChar(SCREEN_ROWS - 1, col, c);
@@ -1843,10 +1972,7 @@ fn startLspServer(editor_state: *EditorState, filename: [*]const u8, data: [*]co
     }
 }
 
-
 export fn zig_start(sp: usize) usize {
-    rawWrite(STDOUT_FILENO, "Debug: zig_start entered, sp=", 29);
-    
     var sp_val = sp;
     var sp_buf: [32]u8 = undefined;
     var sp_i: usize = 0;
@@ -1868,9 +1994,9 @@ export fn zig_start(sp: usize) usize {
     }
     rawWrite(STDOUT_FILENO, &sp_buf, sp_i);
     rawWrite(STDOUT_FILENO, "\n", 1);
-    
+
     const argc = @as(*usize, @ptrFromInt(sp)).*;
-    
+
     var argc_buf: [16]u8 = undefined;
     var argc_len: usize = 0;
     var n_argc = argc;
@@ -1889,19 +2015,17 @@ export fn zig_start(sp: usize) usize {
             argc_buf[argc_len - 1 - j] = tmp;
         }
     }
-    rawWrite(STDOUT_FILENO, "Debug: argc=", 12);
     rawWrite(STDOUT_FILENO, &argc_buf, argc_len);
     rawWrite(STDOUT_FILENO, "\n", 1);
 
     const default_file = "/tmp/test_file.txt";
     const filename_ptr: [*:0]const u8 = if (argc > 1) @as([*][*:0]const u8, @ptrFromInt(sp + 8))[1] else default_file;
-    
-    rawWrite(STDOUT_FILENO, "Debug: Opening: ", 16);
+
     rawWrite(STDOUT_FILENO, filename_ptr, nullTerminatedLength(filename_ptr));
     rawWrite(STDOUT_FILENO, "\n", 1);
 
-    const fd = rawOpen(filename_ptr, O_RDONLY, 0);
-    
+    const fd = rawOpen(filename_ptr, O_RDWR, 0);
+
     if (fd < 0) {
         rawWrite(STDOUT_FILENO, "Error: Could not open file, code: ", 34);
         const err_val = -fd;
@@ -1929,7 +2053,6 @@ export fn zig_start(sp: usize) usize {
         return 1;
     }
 
-    rawWrite(STDOUT_FILENO, "Debug: File opened\n", 19);
     var file_size: usize = 0;
     const fd_usize: usize = @bitCast(fd);
     {
@@ -1940,7 +2063,6 @@ export fn zig_start(sp: usize) usize {
     }
 
     if (file_size == 0) file_size = 1024;
-    rawWrite(STDOUT_FILENO, "Debug: File size determined\n", 28);
 
     const aligned_size = alignUp(file_size, getPageSize());
 
@@ -1952,22 +2074,18 @@ export fn zig_start(sp: usize) usize {
         _ = close_result;
         return 1;
     }
-    rawWrite(STDOUT_FILENO, "Debug: File mmapped\n", 20);
 
     const close_result = rawClose(fd_usize);
     _ = close_result;
 
     const state_page_size = alignUp(@sizeOf(EditorState), getPageSize());
-    rawWrite(STDOUT_FILENO, "Debug: Allocating EditorState\n", 30);
     const state_ptr = rawMmap(null, state_page_size, PROT_READ_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, @as(usize, @bitCast(@as(isize, -1))), 0) orelse {
         rawWrite(STDOUT_FILENO, "Error: Failed to allocate EditorState\n", 37);
         return 1;
     };
-    rawWrite(STDOUT_FILENO, "Debug: EditorState allocated\n", 29);
     const editor_state: *EditorState = @ptrCast(@alignCast(state_ptr));
     @memset(state_ptr[0..@sizeOf(EditorState)], 0);
-    rawWrite(STDOUT_FILENO, "Debug: EditorState zeroed\n", 26);
-    
+
     editor_state.viewport.rows = SCREEN_ROWS;
     editor_state.viewport.cols = SCREEN_COLS;
     editor_state.file_version = 1;
@@ -1982,22 +2100,43 @@ export fn zig_start(sp: usize) usize {
     editor_state.aligned_size = aligned_size;
     editor_state.filename = filename_ptr;
 
+    // Auto-detect and start LSP based on file extension
+    // DISABLED: fork/execve in freestanding causes SIGILL
+    // Use :lsp zls command to manually enable
+    // const language_id = detectLanguageId(filename_ptr);
+    // if (!memeqString(language_id, "plaintext")) { ... }
+
     var in_command: bool = false;
 
-    rawWrite(STDOUT_FILENO, "Debug: Starting first render\n", 29);
     if (mapped_ptr) |data| {
         renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
     }
-    rawWrite(STDOUT_FILENO, "Debug: First render complete\n", 29);
 
     rawWrite(STDOUT_FILENO, ansi_mouse.ENABLE_MOUSE, ansi_mouse.ENABLE_MOUSE.len);
+
+    // Setup signal handlers
+    const act = Sigaction{
+        .handler = sigintHandler,
+        .flags = SA_RESTORER,
+        .restorer = restore_rt,
+        .mask = 0,
+    };
+    _ = rawSigaction(SIGINT, &act, null);
+    _ = rawSigaction(SIGQUIT, &act, null);
+    _ = rawSigaction(SIGHUP, &act, null);
+    _ = rawSigaction(SIGTERM, &act, null);
+    _ = rawSigaction(SIGSEGV, &act, null);
+    _ = rawSigaction(SIGILL, &act, null);
+    _ = rawSigaction(SIGABRT, &act, null);
+    _ = rawSigaction(SIGFPE, &act, null);
+    _ = rawSigaction(SIGBUS, &act, null);
 
     var raw_buffer: [32]u8 = undefined; // Support SGR mouse sequences
     var normal_mode_buffer: [1]u8 = undefined;
     while (true) {
         const read_result = rawRead(STDIN_FILENO, &raw_buffer, 1);
         if (raw_buffer[0] == 'q') {
-            rawWrite(STDOUT_FILENO, ansi_mouse.DISABLE_MOUSE, ansi_mouse.DISABLE_MOUSE.len);
+            cleanupTerminal();
             break;
         }
         if (read_result > 0) {
@@ -2022,7 +2161,7 @@ export fn zig_start(sp: usize) usize {
                                         if (raw_buffer[k] == 'M' or raw_buffer[k] == 'm') break;
                                         k += 1;
                                     }
-                                    
+
                                     if (mouse.parseSgrMouse(raw_buffer[0..seq_len])) |event| {
                                         if (event.pressed) {
                                             if (event.button == 0) { // Left Click
@@ -2087,6 +2226,15 @@ export fn zig_start(sp: usize) usize {
                     }
                 }
 
+                if (raw_buffer[0] == 20) { // Ctrl+T
+                    editor_state.terminal_active = !editor_state.terminal_active;
+                    if (editor_state.terminal_active and editor_state.terminal_relay.pid == 0) {
+                        // Start a default shell if none running
+                        _ = editor_state.terminal_relay.spawn("/bin/sh") catch {};
+                    }
+                    renderViewport(data, file_size, editor_state.line_offset, &editor_state.screen_buffer, editor_state);
+                    continue;
+                }
                 // Handle Ctrl+Z (undo) - ASCII 26
                 if (raw_buffer[0] == 26) {
                     undoOperation(data, editor_state);
@@ -2118,7 +2266,31 @@ export fn zig_start(sp: usize) usize {
                 } else if (in_command) {
                     if (raw_buffer[0] == 13) { // Enter to execute command
                         const cmd = editor_state.command_buffer[0..editor_state.command_len];
-                        if (cmd.len > 3 and cmd[0] == 'l' and cmd[1] == 's' and cmd[2] == 'p') {
+                        if (eqStr(cmd, "q")) {
+                            cleanupTerminal();
+                            rawExit(0);
+                        } else if (eqStr(cmd, "q!")) {
+                            cleanupTerminal();
+                            rawExit(0);
+                        } else if (eqStr(cmd, "w")) {
+                            _ = saveFile(data, aligned_size, editor_state.modified, editor_state);
+                        } else if (eqStr(cmd, "term")) {
+                            editor_state.terminal_active = !editor_state.terminal_active;
+                            if (editor_state.terminal_active and editor_state.terminal_relay.pid == 0) {
+                                _ = editor_state.terminal_relay.spawn("/bin/sh") catch {};
+                            }
+                        } else if (eqStr(cmd, "termkill")) {
+                            editor_state.terminal_relay.kill();
+                            editor_state.terminal_active = false;
+                        } else if (cmd.len >= 3 and eqStr(cmd[0..3], "sh ")) {
+                            const shell_cmd = cmd[3..];
+                            if (shell_cmd.len > 0) {
+                                editor_state.terminal_relay.kill();
+                                _ = editor_state.terminal_relay.spawn(shell_cmd) catch {};
+                                editor_state.terminal_active = true;
+                                editor_state.terminal_len = 0;
+                            }
+                        } else if (cmd.len > 3 and cmd[0] == 'l' and cmd[1] == 's' and cmd[2] == 'p') {
                             const server_name = cmd[4..];
                             if (server_name.len > 0) {
                                 @memcpy(editor_state.lsp_server_name[0..server_name.len], server_name);

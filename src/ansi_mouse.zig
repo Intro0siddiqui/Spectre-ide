@@ -1,8 +1,0 @@
-pub const ENABLE_X11_MOUSE = "\x1b[?1000h";
-pub const DISABLE_X11_MOUSE = "\x1b[?1000l";
-
-pub const ENABLE_SGR_MOUSE = "\x1b[?1006h";
-pub const DISABLE_SGR_MOUSE = "\x1b[?1006l";
-
-pub const ENABLE_MOUSE = ENABLE_X11_MOUSE ++ ENABLE_SGR_MOUSE;
-pub const DISABLE_MOUSE = DISABLE_X11_MOUSE ++ DISABLE_SGR_MOUSE;

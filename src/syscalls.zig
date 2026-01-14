@@ -60,12 +60,15 @@ pub const Syscall = enum(usize) {
     dup3 = 24,
     pipe2 = 293,
     fcntl = 72,
+    rt_sigaction = 13,
+    rt_sigreturn = 15,
 };
 
 inline fn syscall0(number: Syscall) usize {
     return asm volatile ("syscall"
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
+        : .{ .rcx = true, .r11 = true }
     );
 }
 
@@ -83,6 +86,7 @@ inline fn syscall1(number: Syscall, arg1: usize) usize {
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
+        : .{ .rcx = true, .r11 = true }
     );
 }
 
@@ -92,6 +96,7 @@ inline fn syscall2(number: Syscall, arg1: usize, arg2: usize) usize {
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
+        : .{ .rcx = true, .r11 = true }
     );
 }
 
@@ -102,6 +107,7 @@ inline fn syscall3(number: Syscall, arg1: usize, arg2: usize, arg3: usize) usize
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
+        : .{ .rcx = true, .r11 = true }
     );
 }
 
@@ -113,6 +119,7 @@ inline fn syscall4(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4:
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
           [arg4] "{r10}" (arg4),
+        : .{ .rcx = true, .r11 = true }
     );
 }
 
@@ -125,6 +132,7 @@ inline fn syscall5(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4:
           [arg3] "{rdx}" (arg3),
           [arg4] "{r10}" (arg4),
           [arg5] "{r8}" (arg5),
+        : .{ .rcx = true, .r11 = true }
     );
 }
 
@@ -178,6 +186,22 @@ pub fn rawGetPid() usize {
 
 pub fn rawNanosleep(req: *const timespec, rem: ?*timespec) usize {
     return syscall2(.nanosleep, @intFromPtr(req), if (rem) |p| @intFromPtr(p) else 0);
+}
+
+pub const SIGINT = 2;
+pub const SA_RESTORER = 0x04000000;
+
+pub const sigset_t = u64;
+
+pub const Sigaction = extern struct {
+    handler: ?*const fn (i32) callconv(.C) void,
+    flags: usize,
+    restorer: ?*const fn () callconv(.C) void,
+    mask: sigset_t,
+};
+
+pub fn rawSigaction(sig: i32, act: ?*const Sigaction, oact: ?*Sigaction) usize {
+    return syscall4(.rt_sigaction, @as(usize, @bitCast(@as(isize, sig))), if (act) |a| @intFromPtr(a) else 0, if (oact) |o| @intFromPtr(o) else 0, 8);
 }
 
 pub const timespec = extern struct {

@@ -1,0 +1,250 @@
+const Syscall = enum(usize) { write = 1, exit = 60, read = 0, open = 2, close = 3, fstat = 5, mmap = 9, munmap = 11, msync = 26, mremap = 25, ftruncate = 77 };
+const STDIN_FILENO: usize = 0;
+const STDOUT_FILENO: usize = 1;
+
+const O_RDONLY: usize = 0;
+const O_RDWR: usize = 2;
+const PROT_READ: usize = 1;
+const PROT_WRITE: usize = 2;
+const PROT_READ_WRITE: usize = 3;
+const MAP_PRIVATE: usize = 0x02;
+const MAP_ANONYMOUS: usize = 0x20;
+const MAP_SHARED: usize = 0x01;
+const MAP_FAILED: isize = -1;
+
+const MS_ASYNC: usize = 1;
+const MS_SYNC: usize = 4;
+const MS_INVALIDATE: usize = 2;
+
+const PAGE_SIZE: usize = 4096;
+
+const SCREEN_ROWS: usize = 24;
+const SCREEN_COLS: usize = 80;
+
+const ANSI_COLOR_DEFAULT = 0;
+const ANSI_COLOR_KEYWORD = 33;
+const ANSI_COLOR_STRING = 32;
+const ANSI_COLOR_NUMBER = 36;
+const ANSI_COLOR_COMMENT = 90;
+const ANSI_COLOR_FUNCTION = 34;
+const ANSI_COLOR_TYPE = 35;
+const ANSI_COLOR_VARIABLE = 31;
+const ANSI_COLOR_ERROR = 31;
+const ANSI_COLOR_WARNING = 33;
+const ANSI_COLOR_CLASS = 35;
+const ANSI_COLOR_PARAMETER = 37;
+const ANSI_COLOR_PROPERTY = 37;
+
+const ansi_mouse = @import("ansi_mouse.zig");
+const mouse = @import("mouse.zig");
+const terminal = @import("terminal.zig");
+
+const LSPClient = @import("lsp_client.zig").LSPClient;
+const Config = @import("config.zig").Config;
+const getLspServer = @import("lsp_client.zig").getLspServer;
+const getLspServerByName = @import("lsp_client.zig").getLspServerByName;
+const makeFileUri = @import("lsp_client.zig").makeFileUri;
+const SemanticToken = @import("lsp_client.zig").SemanticToken;
+const SemanticTokens = @import("lsp_client.zig").SemanticTokens;
+const Diagnostic = @import("lsp_client.zig").Diagnostic;
+const Diagnostics = @import("lsp_client.zig").Diagnostics;
+
+fn detectLanguageId(filename: [*]const u8) []const u8 {
+    var i: usize = 0;
+    while (filename[i] != 0) : (i += 1) {}
+    const len = i;
+
+    var ext_start: usize = len;
+    while (ext_start > 0 and filename[ext_start - 1] != '.') : (ext_start -= 1) {}
+
+    if (ext_start == 0 or ext_start == len) return "plaintext";
+
+    const ext_len = len - ext_start;
+    if (ext_len < 2 or ext_len > 4) return "plaintext";
+
+    if (ext_len == 3) {
+        const e1 = filename[ext_start];
+        const e2 = filename[ext_start + 1];
+        const e3 = filename[ext_start + 2];
+
+        if ((e1 == 'z' or e1 == 'Z') and (e2 == 'i' or e2 == 'I') and (e3 == 'g' or e3 == 'G')) return "zig";
+        if ((e1 == 'p' or e1 == 'P') and (e2 == 'y' or e2 == 'Y')) return "python";
+        if ((e1 == 'r' or e1 == 'R') and (e2 == 's' or e2 == 'S')) return "rust";
+        if ((e1 == 'g' or e1 == 'G') and (e2 == 'o' or e2 == 'O')) return "go";
+        if ((e1 == 'j' or e1 == 'J') and (e2 == 's' or e2 == 'S')) return "javascript";
+        if ((e1 == 'j' or e1 == 'J') and (e2 == 'a' or e2 == 'A')) return "java";
+        if ((e1 == 's' or e1 == 'S') and (e2 == 'h' or e2 == 'H')) return "shell";
+        if ((e1 == 'm' or e1 == 'M') and (e2 == 'd' or e2 == 'D')) return "markdown";
+    }
+
+    if (ext_len == 2) {
+        const e1 = filename[ext_start];
+        const e2 = filename[ext_start + 1];
+        if ((e1 == 'c' or e1 == 'C') and (e2 == 'c' or e2 == 'C')) return "cpp";
+        if ((e1 == 'c' or e1 == 'C') and (e2 == 'h' or e2 == 'H')) return "c";
+    }
+
+    return "plaintext";
+}
+
+// LSP Client structures
+const SyntaxHighlight = struct {
+    row: usize,
+    start_col: usize,
+    end_col: usize,
+    color: u8,
+    bold: bool = false,
+};
+
+const MAX_HIGHLIGHTS = 4096;
+
+const SyntaxHighlighter = struct {
+    highlights: [MAX_HIGHLIGHTS]SyntaxHighlight = undefined,
+    count: usize = 0,
+
+    fn reset(self: *SyntaxHighlighter) void {
+        self.count = 0;
+    }
+
+    fn addHighlight(self: *SyntaxHighlighter, row: usize, start_col: usize, end_col: usize, color: u8, bold: bool) void {
+        if (self.count < MAX_HIGHLIGHTS) {
+            self.highlights[self.count] = .{ .row = row, .start_col = start_col, .end_col = end_col, .color = color, .bold = bold };
+            self.count += 1;
+        }
+    }
+
+    fn getHighlightAt(self: *const SyntaxHighlighter, row: usize, col: usize) ?u8 {
+        for (0..self.count) |i| {
+            const h = self.highlights[i];
+            if (h.row == row and col >= h.start_col and col < h.end_col) {
+                return h.color;
+            }
+        }
+        return null;
+    }
+};
+
+fn fileExtension(filename: [*]const u8) []const u8 {
+    var i: usize = 0;
+    while (filename[i] != 0) : (i += 1) {}
+    const len = i;
+
+    i = len;
+    while (i > 0 and filename[i - 1] != '.') : (i -= 1) {}
+    if (i > 0 and i < len) {
+        return filename[i..len];
+    }
+    return "";
+}
+
+fn detectLanguage(ext: []const u8) []const u8 {
+    if (ext.len < 2) return "plaintext";
+
+    if (memeqString(ext, "zig")) return "zig";
+    if (memeqString(ext, "c") or memeqString(ext, "h")) return "c";
+    if (memeqString(ext, "cpp") or memeqString(ext, "cxx") or memeqString(ext, "hpp")) return "cpp";
+    if (memeqString(ext, "py")) return "python";
+    if (memeqString(ext, "js") or memeqString(ext, "ts")) return "javascript";
+    if (memeqString(ext, "rs")) return "rust";
+    if (memeqString(ext, "go")) return "go";
+    if (memeqString(ext, "java")) return "java";
+    if (memeqString(ext, "json")) return "json";
+    if (memeqString(ext, "sh") or memeqString(ext, "bash") or memeqString(ext, "zsh")) return "shell";
+    if (memeqString(ext, "md") or memeqString(ext, "txt")) return "markdown";
+
+    return "plaintext";
+}
+
+fn memeqString(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a, b) |x, y| {
+        const ax = if (x >= 'A' and x <= 'Z') x + 32 else x;
+        const by = if (y >= 'A' and y <= 'Z') y + 32 else y;
+        if (ax != by) return false;
+    }
+    return true;
+}
+
+inline fn syscall1(number: Syscall, arg1: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+inline fn syscall3(number: Syscall, arg1: usize, arg2: usize, arg3: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+          [arg3] "{rdx}" (arg3),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+inline fn syscall6(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize, arg6: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+          [arg3] "{rdx}" (arg3),
+          [arg4] "{r10}" (arg4),
+          [arg5] "{r8}" (arg5),
+          [arg6] "{r9}" (arg6),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+inline fn syscall2(number: Syscall, arg1: usize, arg2: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+inline fn syscall5(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+          [arg3] "{rdx}" (arg3),
+          [arg4] "{r10}" (arg4),
+          [arg5] "{r8}" (arg5),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+inline fn syscall0(number: Syscall) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+inline fn syscall4(number: Syscall, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
+    return asm volatile ("syscall"
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+          [arg3] "{rdx}" (arg3),
+          [arg4] "{r10}" (arg4),
+        : .{ .rcx = true, .r11 = true }
+    );
+}
+
+const SIGINT = 2;
+const SA_RESTORER = 0x04000000;
+
+const Sigaction = extern struct {
+    handler: ?*const fn (i32) callconv(.C) void,
+    flags: usize,

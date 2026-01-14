@@ -1,9 +1,9 @@
 # Zig Reference Guide for Spectre-IDE Project
 
-**Version:** Zig 0.16.0-dev.2145+ec25b1384
-**Date:** 2026-01-12
+**Version:** Zig 0.15.2
+**Date:** 2026-01-14
 **Project:** Spectre-IDE (Freestanding Editor)
-**Phase:** Phase 13+ LSP Ready - Complete Editor
+**Phase:** Phase 16+ Stabilized - optimized terminal rendering with Dracula Theme
 
 ---
 
@@ -110,17 +110,18 @@ export fn _start() noreturn {
 
 ## Inline Assembly
 
-### Basic Syntax (Zig 0.16+)
+### Basic Syntax (Zig 0.15.2)
 
 ```zig
-inline fn syscall3(number: usize, arg1: usize, arg2: usize, arg3: usize) usize {
+inline fn syscall3(number: Syscall, arg1: usize, arg2: usize, arg3: usize) usize {
     return asm volatile ("syscall"
         : [ret] "={rax}" (-> usize)
-        : [number] "{rax}" (number),
+        : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3)
-        );
+        : "rcx", "r11"
+    );
 }
 ```
 
@@ -129,7 +130,7 @@ inline fn syscall3(number: usize, arg1: usize, arg2: usize, arg3: usize) usize {
 1. **Assembly Template:** The string containing assembly instructions
 2. **Output Operands:** `: [output] "constraint" (variable)`
 3. **Input Operands:** `: [name] "constraint" (expression)`
-4. **Clobbers:** **NOTE:** In Zig 0.16+, explicit clobbers may not be supported the same way. Try omitting entirely or using minimal lists.
+4. **Clobbers:** **CRITICAL:** In Zig 0.15.2, explicit clobbers for `rcx` and `r11` must be provided as a string list: `: "rcx", "r11"`. Using the legacy struct syntax `.{ .rcx = true }` is an error.
 
 ### Register Constraints
 
@@ -244,6 +245,38 @@ inline fn syscall6(number: usize, arg1: usize, arg2: usize, arg3: usize, arg4: u
 const STDIN_FILENO: usize = 0;
 const STDOUT_FILENO: usize = 1;
 const STDERR_FILENO: usize = 2;
+```
+
+### Signal Handling (rt_sigaction)
+
+In freestanding Linux, handling signals requires direct interaction with the kernel structure and providing a "restorer" function to handle the stack cleanup after the signal handler returns.
+
+**Key Components:**
+- **SA_RESTORER (0x04000000):** This flag must be set in `sigaction.flags`.
+- **restorer:** A function that calls `rt_sigreturn` (syscall 15) to tell the kernel the signal handler has finished.
+
+```zig
+const SA_RESTORER = 0x04000000;
+
+const Sigaction = extern struct {
+    handler: ?*const fn (i32) callconv(.c) void,
+    flags: usize,
+    restorer: ?*const fn () callconv(.c) void,
+    mask: u64,
+};
+
+fn restore_rt() callconv(.c) void {
+    _ = syscall0(Syscall.rt_sigreturn);
+}
+
+// Usage:
+const act = Sigaction{
+    .handler = sigintHandler,
+    .flags = SA_RESTORER,
+    .restorer = restore_rt,
+    .mask = 0,
+};
+_ = rawSigaction(SIGINT, &act, null);
 ```
 
 ---
@@ -535,6 +568,20 @@ export fn _start() noreturn {
 | `\x1b[7m` | Inverse video (highlight) |
 | `\x1b[0m` | Reset all attributes |
 | `\x1b[90m` | Bright black (gray) text |
+| `\x1b[38;5;Nm` | Set 256-color foreground (N=0-255) |
+| `\x1b[48;5;Nm` | Set 256-color background (N=0-255) |
+
+### Dracula Color Palette (256-color)
+
+| Component | Code | ID (N) |
+|-----------|------|--------|
+| Background | Deep Grey | 236 |
+| Keywords | Purple | 141 |
+| Strings | Green | 84 |
+| Numbers | Cyan | 117 |
+| Operators | Pink | 212 |
+| Comments | Grey | 103 |
+| Selection | Light Grey | 242 |
 
 ---
 
@@ -1010,33 +1057,23 @@ _ = result;
 - **Binary Size:** ~19K (19,456 bytes)
 - **Target:** < 600KB ✓ (97% under budget)
 - **Source Lines:** 1,440 lines
-- **Status:** Phase 13+ LSP Ready - Full editor with LSP architecture
+- **Status:** Phase 16+ Stabilized - optimized terminal rendering with Dracula Theme
 - **Features Implemented:**
   - [x] Freestanding entry (no LibC)
-  - [x] Raw syscalls (write, read, exit, fork, execve, pipe)
+  - [x] Raw syscalls (write, read, exit, fork, execve, pipe, rt_sigaction)
   - [x] mmap for zero-copy file access
-  - [x] fstat for file size detection
-  - [x] Viewport rendering (20 lines)
-  - [x] j/k scroll navigation
+  - [x] Optimized ANSI rendering via 16KB batch output buffer
+  - [x] Dracula 256-color theme
+  - [x] Robust signal handling (SIGINT, SIGSEGV, SIGQUIT, etc.)
   - [x] Command-line argument parsing (argc/argv from stack)
-  - [x] Memory cleanup on exit (munmap)
-  - [x] Input validation (read_result checks)
   - [x] File saving (msync syscall)
   - [x] ANSI diff rendering (double-buffering)
-  - [x] Character insertion (insert mode)
   - [x] Undo/Redo system (Ctrl+Z)
-  - [x] Delete/Backspace Support
-  - [x] Cursor Movement (arrows, h/j/k/l, Home/End)
-  - [x] Line Operations (Enter split, dd delete, J join)
-  - [x] Search Functionality (/pattern, n/N navigation)
-  - [x] File Size Handling (mremap, ftruncate)
-  - [x] Status Bar Enhancements (mode, line, col, size, modified)
-  - [x] LSP Client Architecture (ready for language servers)
+  - [x] Delete/Backspace/Search support
+  - [x] LSP Client Architecture (Manual Mode)
 - **Next Phases:**
-  - Phase 15: Multiple Buffers
-  - Phase 16: Additional Navigation
-  - Phase 17: Configuration System
-  - Phase 18: Mouse Support
+  - Phase 19: Full Terminal Emulator Relay (PTY)
+  - Phase 20: Persistent Configuration
 
 ---
 
@@ -1690,4 +1727,40 @@ wraplines=false
 
 **Final Target:** ~170KB (72% under budget)
 
-*Last Updated: 2026-01-12*
+### Phase 18: Terminal Rendering Optimization
+
+**Goal:** Reduce system call overhead during screen updates.
+
+**Technical Details:**
+In a freestanding environment, every `write` syscall has a measurable cost. A naive diff-rendering engine might issue a `write` for every changed character or every cursor movement.
+
+**Optimized Strategy:**
+Use a large stack-allocated character buffer (e.g., 16KB) to batch all ANSI escape sequences and character updates for a single frame.
+
+```zig
+fn renderDiff(self: *ScreenBuffer) void {
+    var out_buf: [16384]u8 = undefined;
+    var out_len: usize = 0;
+
+    // ... calculate changes ...
+    
+    // Batch move and write
+    if (out_len + 32 > out_buf.len) { 
+        rawWrite(STDOUT_FILENO, &out_buf, out_len); 
+        out_len = 0; 
+    }
+    // ... add ANSI codes and chars to out_buf ...
+
+    // Final burst write
+    if (out_len > 0) rawWrite(STDOUT_FILENO, &out_buf, out_len);
+}
+```
+
+**Results:**
+- Reduced CPU usage during rapid scrolling.
+- Elimination of terminal "flicker" caused by partial writes.
+- Massive reduction in total syscall count per second.
+
+---
+
+*Last Updated: 2026-01-14*
